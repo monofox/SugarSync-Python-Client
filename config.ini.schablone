@@ -1,0 +1,13 @@
+[user]
+username = 
+password = 
+
+[connection]
+url = https://api.sugarsync.com
+accesskeyid = 
+privateaccesskey = 
+
+[auth]
+token = 
+tokenexpire = 
+
