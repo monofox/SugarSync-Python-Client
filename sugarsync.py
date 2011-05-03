@@ -10,9 +10,9 @@ class SugarSync:
     def __init__(self):
         # TODO all should be layed out!
         self.username = 'lukas.schreiner@gmail.com'
-        self.password = 'LuiSA563.'
-        self.accessKeyId = 'MTIzNDcyMTEzMDQzNDExODYxNjI'
-        self.privateAccessKey = 'MDc5YjA4YmFkOTVlNDY5OGEwNzc2YjNlZGM4OWI1MjQ'
+        self.password = ''
+        self.accessKeyId = ''
+        self.privateAccessKey = ''
         self.apiURL = 'https://api.sugarsync.com'
         self.token = None
         self.tokenExpire = None
