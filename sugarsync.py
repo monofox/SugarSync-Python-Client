@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import urllib2,urllib
+import urllib2
+import urllib
 import re
 import ConfigParser
 import datetime
@@ -28,9 +29,9 @@ class SugarSync:
 
         #folder
         self.folder = {}
-
+        
+        
         self.readConfig()
-
         self.checkAuth()
         self.cmd()
 
@@ -39,11 +40,18 @@ class SugarSync:
     def cmd(self):
         self.exit = False
         while self.exit is False:
-            print "0: Exit \n1: show all contents collection"
+            print "0: Exit\n1: Authenticate\n2: User info\n99: show all contents collection"
             want = input("What do you want?\n")
             if want == 0:
+                print "\nExiting...\n"
                 self.exit = True
             elif want == 1:
+                print "\nAuthenticating...\n"
+                self.auth()
+            elif want == 2:
+                print "\nUser info...\n"
+                self.getUser()
+            elif want == 99:
                 self.getAllFilesCollection()
             else:
                 print "\n\nWRONG input - Try again!\n\n"
@@ -159,9 +167,12 @@ class SugarSync:
         date2 = datetime.datetime.utcnow()
 
         # compare: if date <= date2: self.auth, else: nothing!
-        if date <= date2:
-            self.auth()
-            return False
+        if date != None:
+            if date <= date2:
+                self.auth()
+                return False
+            else:
+                return True
         else:
             return True
 
@@ -212,8 +223,13 @@ class SugarSync:
     def deleteFolder(self, foldername):
         pass
 
-    def getUser(self):
-        pass
+    def getUser(self): 
+        response = self.sendRequest('/user', {}, True, False)
+        resp = XMLElement.parse(response.read())
+        print "Username:\t", resp.username
+        print "Nickname:\t", resp.nickname
+        print "Space Limit:\t", resp.quota.limit, "Bytes"
+        print "Space Used:\t", resp.quota.usage, "Bytes\n"
 
     def getWorkspace(self, pcid):
         pass
