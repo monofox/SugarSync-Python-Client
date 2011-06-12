@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import urllib2
+import urllib2,urllib
 import re
 import ConfigParser
 import datetime
@@ -9,21 +9,45 @@ import datetime
 class SugarSync:
     def __init__(self):
         # TODO all should be layed out!
-        self.username = 'lukas.schreiner@gmail.com'
+        self.username = ''
         self.password = ''
         self.accessKeyId = ''
         self.privateAccessKey = ''
-        self.apiURL = 'https://api.sugarsync.com'
+        self.apiURL = ''
         self.token = None
         self.tokenExpire = None
         self.xmlHead = '<?xml version="1.0" encoding="UTF-8" ?>'
         self.config = None
+        self.exit = False
+
+        # user info
+        self.nickname = ''
+        self.salt = ''
+        self.quotaLimit = 0
+        self.quotaUsage = 0
+
+        #folder
+        self.folder = {}
 
         self.readConfig()
 
-        self.auth()
+        self.checkAuth()
+        self.cmd()
 
         self.writeConfig()
+
+    def cmd(self):
+        self.exit = False
+        while self.exit is False:
+            print "0: Exit \n1: show all contents collection"
+            want = input("What do you want?\n")
+            if want == 0:
+                self.exit = True
+            elif want == 1:
+                self.getAllFilesCollection()
+            else:
+                print "\n\nWRONG input - Try again!\n\n"
+
     
     def readConfig(self):
         self.config = ConfigParser.ConfigParser()
@@ -37,6 +61,14 @@ class SugarSync:
 
         self.token = self.config.get('auth', 'token')
         self.tokenExpire = self.config.get('auth', 'tokenExpire')
+        # user
+        self.quotaLimit = self.config.get('quota', 'limit')
+        self.quotaUsage = self.config.get('quota', 'usage')
+        
+        # folder
+        for k,v in self.config.items('folder'):
+            self.folder[k] = v
+
 
     def writeConfig(self):
         self.config.set('user', 'username', self.username)
@@ -46,16 +78,37 @@ class SugarSync:
         self.config.set('connection', 'url', self.apiURL)
         self.config.set('auth', 'token', self.token)
         self.config.set('auth', 'tokenExpire', self.tokenExpire)
+        self.config.set('quota', 'limit', self.quotaLimit)
+        self.config.set('quota', 'usage', self.quotaUsage)
+
+        for k,v in self.folder.iteritems():
+            self.config.set('folder', k, v)
 
         with open('config.ini', 'wb') as configfile:
             self.config.write(configfile)
 
-    def sendRequest(self, path, data):
+    def sendRequest(self, path, data = {}, token = True, post = True, headers = {}):
         response = None
 
+        if post:
+            headers['Content-Type'] = 'application/xml; charset=UTF-8'
+        if token:
+            headers['Authorization'] = self.token
+        
         try:
-            request = urllib2.Request(self.apiURL+path, data, {'Content-type': 'application/xml; charset=UTF-8'})
-            response = urllib2.urlopen(request)
+            if post:
+                request = urllib2.Request(self.apiURL+path, data)
+                for k,v in headers.iteritems():
+                    request.add_header(k, v)
+
+                response = urllib2.urlopen(request)
+            elif len(data) == 0:
+                request = urllib2.Request(self.apiURL+path)
+                request.add_header('Authorization', self.token)
+
+                response = urllib2.urlopen(request)
+        except urllib2.HTTPError as e:
+            print 'Error while requesting API call: %s' % (e.msg)
         except urllib2.URLError as e:
             print 'Error while requesting API call: %s' % (e.reason)
             
@@ -67,20 +120,20 @@ class SugarSync:
 
         match = m.match(date)
         if match is not None:
-            year = match.group(1)
-            month = match.group(2)
-            day = match.group(3)
-            hour = match.group(4)
-            minute = match.group(5)
-            second = match.group(6)
+            year = int(match.group(1))
+            month = int(match.group(2))
+            day = int(match.group(3))
+            hour = int(match.group(4))
+            minute = int(match.group(5))
+            second = int(match.group(6))
             offsetOperand = match.group(9)
-            offsetMulti = offsetOperand+'1'
-            offsetHour = match.group(10)
-            offsetMinute = match.group(11)
+            offsetMulti = int(offsetOperand+'1')*-1
+            offsetHour = int(match.group(10))
+            offsetMinute = int(match.group(11))
 
             # now correct hour
             hour = hour+offsetHour*offsetMulti
-            minute = minute+offsetMinute*offstMulti
+            minute = minute+offsetMinute*offsetMulti
 
             if minute > 59:
                 diff = minute/60.0
@@ -100,8 +153,17 @@ class SugarSync:
         else:
             return None
 
-    def authOkay(self):
+    def checkAuth(self):
         # check whether token is expired or not!
+        date = self.parseDate(self.tokenExpire)
+        date2 = datetime.datetime.utcnow()
+
+        # compare: if date <= date2: self.auth, else: nothing!
+        if date <= date2:
+            self.auth()
+            return False
+        else:
+            return True
 
 
     def auth(self):
@@ -113,7 +175,7 @@ class SugarSync:
         data.addChild(XMLElement('accessKeyId').addChild(XMLTextNode(self.accessKeyId)))
         data.addChild(XMLElement('privateAccessKey').addChild(XMLTextNode(self.privateAccessKey)))
         
-        response = self.sendRequest('/authorization', data.toString())
+        response = self.sendRequest('/authorization', data.toString(), False)
         info = response.info()
         self.token = info['Location']
         resp = XMLElement.parse(response.read())
@@ -157,10 +219,29 @@ class SugarSync:
         pass
 
     def getCollectionContentInfo(self, typ = 'all', start = 0, maxnumber = 500):
+
         pass
 
+    def getAllFilesCollection(self):
+        response = self.sendRequest('/user', {}, True, False)
 
+        data = XMLElement.parse(response.read())
+        self.quotaLimit = data.quota.limit
+        self.quotaUsage = data.quota.usage
 
+        self.folder['workspaces'] = data.workspaces
+        self.folder['syncfolders'] = data.syncfolders
+        self.folder['deleted'] = data.deleted
+        self.folder['magicBriefcase'] = data.magicBriefcase
+        self.folder['webArchive'] = data.webArchive
+        self.folder['mobilePhotos'] = data.mobilePhotos
+        self.folder['albums'] = data.albums
+        self.folder['recentactivities'] = data.recentActivities
+        self.folder['receivedshares'] = data.receivedShares
+        self.folder['publiclinks'] = data.publicLinks
+
+        print data.toString()
+        print "Data loaded! \n\n"
 
 class XMLElement:
     

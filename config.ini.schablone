@@ -11,3 +11,18 @@ privateaccesskey =
 token = 
 tokenexpire = 
 
+[quota]
+limit = 
+usage =
+
+[folder]
+workspaces = 
+syncfolders =
+deleted = 
+magicBriefcase =
+webArchive =
+mobilePhotos =
+albums = 
+recentActivities =
+receivedShares =
+publicLinks =
