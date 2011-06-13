@@ -1,15 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3.2
 # -*- coding: utf-8 -*-
 
-import urllib2
-import urllib
+import urllib.request, urllib.error, urllib.parse
+from configparser import SafeConfigParser
+from httplib2 import Http, Response
 import re
-import ConfigParser
 import datetime
 
 class SugarSync:
     def __init__(self):
-        # TODO all should be layed out!
+        # will be written to config.ini on exit and loaded on startup
         self.username = ''
         self.password = ''
         self.accessKeyId = ''
@@ -39,25 +39,121 @@ class SugarSync:
     def cmd(self):
         self.exit = False
         while self.exit is False:
-            print "0: Exit\n1: Authenticate\n2: User info\n99: show all contents collection"
-            want = input("What do you want?\n")
+            print("\n\n\n \
+                   ==== M - E - N - U ====\n\n \
+                   0: Exit\n \
+                   1: Authenticate\n \
+                   2: User info\n \
+                   3: load contents collection\n \
+                   4: Creating a new folder\n \
+                   5: Delete a folder\n \
+                   6: Creating a new file\n \
+                   7: Delete a file\n \
+                   8: Rename a folder\n \
+                   9: Rename a file\n \
+                   10: Moving a file ::: DOES NOT WORK!\n \
+                   11: Copy a file ::: DOES NOT WORK (400)\n \
+                   12: Upload a file\n \
+                   13: Download a file")
+
+            want = int(input("What do you want?\n"))
             if want == 0:
-                print "\nExiting...\n"
+                print("\nExiting...\n")
                 self.exit = True
             elif want == 1:
-                print "\nAuthenticating...\n"
+                print("\nAuthenticating...\n")
                 self.auth()
             elif want == 2:
-                print "\nUser info...\n"
+                print("\nUser info...\n")
                 self.getUser()
-            elif want == 99:
+            elif want == 3:
+                print('\nCollecting all files...\n')
                 self.getAllFilesCollection()
+            elif want == 4:
+                print('\nCreating a new folder...\n')
+                # we need path:
+                path = input('Folder path: ')
+                newfolder = input('Foldername: ')
+
+                self.createFolder(path, newfolder)
+            elif want == 5:
+                print('\nDeleting a folder...\n')
+                # we need the folder id
+                foldername = input('Folder ID: ')
+                
+                self.deleteFolder(foldername)
+            elif want == 6:
+                print('\nCreating a new file...\n')
+                # we need path:
+                path = input('Folder path: ')
+                # we need filename
+                newfile = input('Filename: ')
+                # and last but not least: media type
+                media = input('MediaType (ex. text/plain, image/jpeg): ')
+
+                self.createFile(path, newfile, media)
+            elif want == 7:
+                print('\nDeleting a file...\n')
+                # we need the file id
+                filename = input('File ID: ')
+                
+                self.deleteFile(filename)
+            elif want == 8:
+                print('\nRenaming a folder...\n')
+                # we need folder
+                path = input('Folder: ')
+                # we need new name
+                name = input('New folder name: ')
+
+                self.renameFolder(path, name)
+            elif want == 9:
+                print('\nRenaming a file...\n')
+                # we need folder
+                path = input('File: ')
+                # we need new name
+                name = input('New file name: ')
+
+                self.renameFile(path, name)
+            elif want == 10:
+                print('\nMoving a file...\n')
+                # we need the file
+                file = input('File: ')
+                # we need the new path
+                path = input('New path (collection): ')
+
+                self.moveFile(file, path)
+            elif want == 11:
+                print('\nCopy a file...\n')
+                # we need the source
+                source = input('Source file: ')
+                # we need the target folder
+                target = input('Target folder: ')
+                # we need the name
+                name = input('Name (in future on blank it will receive actual name): ')
+
+                self.copyFile(source, target, name)
+            elif want == 12:
+                print('\nUploading a file...\n')
+                # we need the filename
+                file = input('File to be uploaded (local!): ')
+                # remote file
+                filename = input('File in SugarSync: ')
+
+                self.uploadFile(file, filename)
+            elif want == 13:
+                print('\nDownloading a file...\n')
+                # we need the file
+                file = input('File (remote): ')
+                # save to?
+                saveto = input('Save to (with filename): ')
+
+                self.getFile(file, saveto)
             else:
-                print "\n\nWRONG input - Try again!\n\n"
+                print("\n\nWRONG input - Try again!\n\n")
 
     
     def readConfig(self):
-        self.config = ConfigParser.ConfigParser()
+        self.config = SafeConfigParser()
         self.config.read(['config.ini'])
 
         self.username = self.config.get('user', 'username')
@@ -78,20 +174,20 @@ class SugarSync:
 
 
     def writeConfig(self):
-        self.config.set('user', 'username', self.username)
-        self.config.set('user', 'password', self.password)
-        self.config.set('connection', 'accessKeyId', self.accessKeyId)
-        self.config.set('connection', 'privateAccessKey', self.privateAccessKey)
-        self.config.set('connection', 'url', self.apiURL)
-        self.config.set('auth', 'token', self.token)
-        self.config.set('auth', 'tokenExpire', self.tokenExpire)
-        self.config.set('quota', 'limit', self.quotaLimit)
-        self.config.set('quota', 'usage', self.quotaUsage)
+        self.config.set('user', 'username', str(self.username))
+        self.config.set('user', 'password', str(self.password))
+        self.config.set('connection', 'accessKeyId', str(self.accessKeyId))
+        self.config.set('connection', 'privateAccessKey', str(self.privateAccessKey))
+        self.config.set('connection', 'url', str(self.apiURL))
+        self.config.set('auth', 'token', str(self.token))
+        self.config.set('auth', 'tokenExpire', str(self.tokenExpire))
+        self.config.set('quota', 'limit', str(self.quotaLimit))
+        self.config.set('quota', 'usage', str(self.quotaUsage))
 
-        for k,v in self.folder.iteritems():
+        for k,v in self.folder.items():
             self.config.set('folder', k, v)
 
-        with open('config.ini', 'wb') as configfile:
+        with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
 
     def sendRequest(self, path, data = {}, token = True, post = True, headers = {}):
@@ -104,23 +200,47 @@ class SugarSync:
         
         try:
             if post:
-                request = urllib2.Request(self.apiURL+path, data)
-                for k,v in headers.iteritems():
+                request = urllib.request.Request(self.apiURL+path, data.encode('utf8'))
+                for k,v in headers.items():
                     request.add_header(k, v)
 
-                response = urllib2.urlopen(request)
+                response = urllib.request.urlopen(request)
             elif len(data) == 0:
-                request = urllib2.Request(self.apiURL+path)
+                request = urllib.request.Request(self.apiURL+path)
                 request.add_header('Authorization', self.token)
 
-                response = urllib2.urlopen(request)
-        except urllib2.HTTPError as e:
-            print 'Error while requesting API call: %s' % (e.msg)
-        except urllib2.URLError as e:
-            print 'Error while requesting API call: %s' % (e.reason)
+                response = urllib.request.urlopen(request)
+        except urllib.error.HTTPError as e:
+            print('Error while requesting API call: %s (%s)' % (e.msg, e.code))
+        except urllib.error.URLError as e:
+            print('Error while requesting API call: %s' % (e.reason))
             
         return response
-    
+ 
+    def sendRequestPut(self, url, data = {}):
+        response = None
+
+        headers = {'Authorization': self.token, 'Content-Type': 'application/xml; charset=UTF-8'}
+        h = Http(disable_ssl_certificate_validation=True)
+        resp, content = h.request(self.apiURL+url, 'PUT', data.encode('utf8'), headers)
+
+        if content is not None:
+            content = content.decode('utf8')
+        
+        return (resp, content)
+
+    def sendRequestDelete(self, url):
+        response = None
+        
+        headers = {'Authorization': self.token}
+        h = Http(disable_ssl_certificate_validation=True)
+        resp, content = h.request(self.apiURL+url, 'DELETE', None, headers)
+
+        if content is not None:
+            content = content.decode('utf8')
+
+        return (resp, content)
+
     def parseDate(self, date):
         pattern = '([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})T([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})\.([0-9]{1,3})((\-|\+)([0-9]{1,2})):([0-9]{1,2})'
         m = re.compile(pattern)
@@ -186,53 +306,193 @@ class SugarSync:
         data.addChild(XMLElement('privateAccessKey').addChild(XMLTextNode(self.privateAccessKey)))
         
         response = self.sendRequest('/authorization', data.toString(), False)
-        info = response.info()
-        self.token = info['Location']
-        resp = XMLElement.parse(response.read())
-        self.tokenExpire = resp.expiration
+        if response is not None:
+            info = response.info()
+            self.token = info['Location']
+            resp = XMLElement.parse(response.read().decode('utf8'))
+            self.tokenExpire = resp.expiration
 
+    def addElementToDatabase(self, file, location):
+        pass
+
+    def createFile(self, path, filename, media):
+        data = XMLElement('file')
+        data.setHead(self.xmlHead)
+
+        data.addChild(XMLElement('displayName').addChild(XMLTextNode(filename)))
+        data.addChild(XMLElement('mediaType').addChild(XMLTextNode(media)))
+
+        response = self.sendRequest('/folder/%s' % path, data.toString(), False)
+        if response is not None:
+            info = response.info()
+            code = response.getcode()
+            location = info['Location']
+            if code == 201:
+                self.addElementToDatabase('%s/%s' % (path, filename), location)
+                print('File created with success. Location: %s' % location)
+            else:
+                print('File could not be deleted (Code: %s)!' % (code))
+
+    def renameFile(self, path, newname):
+        data = XMLElement('file')
+        data.setHead(self.xmlHead)
+
+        data.addChild(XMLElement('displayName').addChild(XMLTextNode(newname)))
+
+        resp, content = self.sendRequestPut('/file/%s' % path, data.toString())
+
+        if resp is not None:
+            if int(resp['status']) == 200:
+                print('File renamed.')
+            else:
+                print('File could not be renamed (Code: %s)!' % (resp['status']))
+
+    def moveFile(self, file, newpath):
+        data = XMLElement('file')
+        data.setHead(self.xmlHead)
+
+        data.addChild(XMLElement('ParentCollection').addChild(XMLTextNode(newpath)))
+
+        resp, content = self.sendRequestPut('/file/%s' % file, data.toString())
         
+        if resp is not None:
+            if int(resp['status']) == 200:
+                print('File moved.')
+            else:
+                print('File could not be moved (Code: %s)!' % (resp['status']))
+
     def getFileInfo(self, filename):
         pass
     
-    def getFile(self, filename):
-        pass
+    def getFile(self, filename, saveto):
+        response = self.sendRequest('/file/%s/data' % filename, {}, True, False)
 
-    def uploadFile(self, filename):
-        pass
+        if response is not False:
+            info = response.info()
+            code = response.getcode()
+            data = response.read().decode('utf8')
+
+            if code == 200:
+                # now write
+                try:
+                    d = open(saveto, 'w')
+                    d.write(data)
+                    d.close()
+
+                    print('File downloaded and saved.')
+                except:
+                    print('File downloaded but not saved.')
+            else:
+                print('File could not be downloaded (Code: %s)!' % (code))
+
+    def uploadFile(self, file, filename):
+        # we will read file
+        data = None
+
+        try:
+            d = open(file, 'r')
+            data = d.read()
+        except:
+            print('ERROR: File could not been read!')
+
+        if data is not None:
+            resp, content = self.sendRequestPut('/file/%s/data' % filename, data)
+
+            if resp is not None:
+                if int(resp['status']) == 204:
+                    print('File uploaded.')
+                else:
+                    print('File could not be uploaded (Code: %s)!' % (resp['status']))
 
     def updateFile(self, filename, name, mediaType, parent = None):
         pass
 
-    def copyFile(self, src, tar, name):
-        pass
+    def copyFile(self, source, target, name):
+        data = XMLElement('fileCopy')
+        data.setHead(self.xmlHead)
+        data.setAttribute('source', self.apiURL+'/file/'+source)
+
+        data.addChild(XMLElement('displayName').addChild(XMLTextNode(name)))
+
+        response = self.sendRequest('/folder/%s' % target, data.toString())
+        
+        if response is not None:
+            info = response.info()
+            code = response.getcode()
+            location = info['Location']
+
+            if code == 201:
+                self.addElementToDatabase('%s/%s' % (target, name), location)
+                print('File copied with sucess. Location: %s' % location)
+            else:
+                print('File could not be copied (Code: %s)!' % (code))
 
     def deleteFile(self, filename):
-        pass
+        resp, content = self.sendRequestDelete('/file/'+filename)   
 
-    def createFolder(self, foldername):
-        pass
+        if resp is not None:
+            if int(resp['status']) == 204:
+                print('File deleted.')
+            else:
+                print('File could not be deleted (Code: %s)!' % (resp['status']))
 
-    def renameFolder(self, foldername, newfolder):
-        pass
+    def createFolder(self, path, foldername):
+        data = XMLElement('folder')
+        data.setHead(self.xmlHead)
+
+        data.addChild(XMLElement('displayName').addChild(XMLTextNode(foldername)))
+
+        response = self.sendRequest('/folder/%s' % path, data.toString())
+
+        if response is not None:
+            info = response.info()
+            code = response.getcode()
+            location = info['Location']
+            if code == 201:
+                self.addElementToDatabase('%s/%s' % (path, foldername), location)
+                print('Folder created with success. Location: %s' % location)
+            else:
+                print('Folder could not be deleted (Code: %s)!' % (code))
+
+    def renameFolder(self, path, newfolder):
+        data = XMLElement('folder')
+        data.setHead(self.xmlHead)
+
+        data.addChild(XMLElement('displayName').addChild(XMLTextNode(newfolder)))
+
+        resp, content = self.sendRequestPut('/folder/%s' % path, data.toString())
+
+        if resp is not None:
+            if int(resp['status']) == 204:
+                print('Folder renamed.')
+            else:
+                print('Folder could not be renamed (Code: %s)!' % (resp['status']))
 
     def getFolderInfo(self, foldername):
         pass
 
     def deleteFolder(self, foldername):
-        pass
+        resp, content = self.sendRequestDelete('/folder/'+foldername)   
+
+        if resp is not None:
+            if int(resp['status']) == 204:
+                print('Folder deleted.')
+            else:
+                print('Folder could not be deleted (Code: %s)!' % (resp['status']))
 
     def getUser(self): 
         response = self.sendRequest('/user', {}, True, False)
-        resp = XMLElement.parse(response.read())
-        self.username = resp.username
-        self.nickname = resp.nickname
-        self.quotaLimit = resp.quota.limit
-        self.quotaUsage = resp.quota.usage
-        print "Username:\t", self.username
-        print "Nickname:\t", self.nickname
-        print "Space Limit:\t", self.quotaLimit, "Bytes"
-        print "Space Used:\t", self.quotaUsage, "Bytes\n"
+
+        if response is not None:
+            resp = XMLElement.parse(response.read().decode('utf8'))
+            self.username = resp.username
+            self.nickname = resp.nickname
+            self.quotaLimit = resp.quota.limit
+            self.quotaUsage = resp.quota.usage
+            print("Username:\t", self.username)
+            print("Nickname:\t", self.nickname)
+            print("Space Limit:\t", self.quotaLimit, "Bytes")
+            print("Space Used:\t", self.quotaUsage, "Bytes\n")
 
     def getWorkspace(self, pcid):
         pass
@@ -243,24 +503,24 @@ class SugarSync:
 
     def getAllFilesCollection(self):
         response = self.sendRequest('/user', {}, True, False)
-
-        data = XMLElement.parse(response.read())
-        self.quotaLimit = data.quota.limit
-        self.quotaUsage = data.quota.usage
-
-        self.folder['workspaces'] = data.workspaces
-        self.folder['syncfolders'] = data.syncfolders
-        self.folder['deleted'] = data.deleted
-        self.folder['magicBriefcase'] = data.magicBriefcase
-        self.folder['webArchive'] = data.webArchive
-        self.folder['mobilePhotos'] = data.mobilePhotos
-        self.folder['albums'] = data.albums
-        self.folder['recentactivities'] = data.recentActivities
-        self.folder['receivedshares'] = data.receivedShares
-        self.folder['publiclinks'] = data.publicLinks
-
-        print data.toString()
-        print "Data loaded! \n\n"
+        
+        if response is not None:
+            data = XMLElement.parse(response.read().decode('utf8'))
+            self.quotaLimit = data.quota.limit
+            self.quotaUsage = data.quota.usage
+        
+            self.folder['workspaces'] = data.workspaces
+            self.folder['syncfolders'] = data.syncfolders
+            self.folder['deleted'] = data.deleted
+            self.folder['magicBriefcase'] = data.magicBriefcase
+            self.folder['webArchive'] = data.webArchive
+            self.folder['mobilePhotos'] = data.mobilePhotos
+            self.folder['albums'] = data.albums
+            self.folder['recentactivities'] = data.recentActivities
+            self.folder['receivedshares'] = data.receivedShares
+            self.folder['publiclinks'] = data.publicLinks
+        
+            print("Data loaded! \n\n")
 
 class XMLElement:
     
@@ -288,7 +548,7 @@ class XMLElement:
         try:
             del self.attributes[name]
         except:
-            print "Element doesn't exist!"
+            print("Element doesn't exist!")
     
     def addChild(self, elm):
         # there can't be more than 1 child if elm == XMLTextNode
@@ -307,7 +567,7 @@ class XMLElement:
     
     def getAttributes(self):
         attr = ''
-        for k,f in self.attributes:
+        for k,f in self.attributes.items():
             attr = attr+' %s="%s"' % (k, f)
     
         return attr
@@ -390,7 +650,7 @@ class Printer:
             if name is not "__abstractmethods__":
                 value = getattr(PrintableClass,name)
                 if  '_' not in str(name).join(str(value)):
-                    print '  .%s: %r' % (name, value)
+                    print('  .%s: %r' % (name, value))
 
 # auth: https://www.sugarsync.com/developers/rest-api-reference/actions/authorization/index.html
 string = '<?xml version="1.0" encoding="UTF-8" ?><authorization><expiration>2010-10-22T02:01:54.964-07:00</expiration><user>https://api.sugarsync.com/user/566494</user></authorization>'
