@@ -29,12 +29,11 @@ class SugarSync:
 
         #folder
         self.folder = {}
-        
-        
+
+        # Call functions
         self.readConfig()
         self.checkAuth()
         self.cmd()
-
         self.writeConfig()
 
     def cmd(self):
@@ -226,10 +225,14 @@ class SugarSync:
     def getUser(self): 
         response = self.sendRequest('/user', {}, True, False)
         resp = XMLElement.parse(response.read())
-        print "Username:\t", resp.username
-        print "Nickname:\t", resp.nickname
-        print "Space Limit:\t", resp.quota.limit, "Bytes"
-        print "Space Used:\t", resp.quota.usage, "Bytes\n"
+        self.username = resp.username
+        self.nickname = resp.nickname
+        self.quotaLimit = resp.quota.limit
+        self.quotaUsage = resp.quota.usage
+        print "Username:\t", self.username
+        print "Nickname:\t", self.nickname
+        print "Space Limit:\t", self.quotaLimit, "Bytes"
+        print "Space Used:\t", self.quotaUsage, "Bytes\n"
 
     def getWorkspace(self, pcid):
         pass
