@@ -54,7 +54,9 @@ class SugarSync:
                    10: Moving a file ::: DOES NOT WORK!\n \
                    11: Copy a file ::: DOES NOT WORK (400)\n \
                    12: Upload a file\n \
-                   13: Download a file")
+                   13: Download a file\n \
+                   14: Get folder informations\n \
+                   15: Get file informations")
 
             want = int(input("What do you want?\n"))
             if want == 0:
@@ -148,6 +150,18 @@ class SugarSync:
                 saveto = input('Save to (with filename): ')
 
                 self.getFile(file, saveto)
+            elif want == 14:
+                print('\nRetrieving folder informations...\n')
+                # we need folder id
+                folder = input('Folder: ')
+
+                self.getFolderInfo(folder)
+            elif want == 15:
+                print('\nRetrieving file informations...\n')
+                # we need file id
+                file = input('File: ')
+
+                self.getFileInfo(file)
             else:
                 print("\n\nWRONG input - Try again!\n\n")
 
@@ -197,7 +211,7 @@ class SugarSync:
             headers['Content-Type'] = 'application/xml; charset=UTF-8'
         if token:
             headers['Authorization'] = self.token
-        
+
         try:
             if post:
                 request = urllib.request.Request(self.apiURL+path, data.encode('utf8'))
@@ -361,8 +375,24 @@ class SugarSync:
             else:
                 print('File could not be moved (Code: %s)!' % (resp['status']))
 
-    def getFileInfo(self, filename):
-        pass
+    def getFileInfo(self, filename): # filename => file id
+        resp = self.sendRequest('/file/'+filename, post=False)
+        respData = None
+
+        if resp is not None:
+            if int(resp.status) == 200:
+                print('Received successful.')
+                # data.. but in which method?
+                data = resp.read().decode('utf8')
+                respData = XMLElement.parse(data)
+
+            else:
+                print('File informations could not be retrieved. (Code: %s)' % resp.status)
+
+        else:
+            print('Could not retrieve file informations.')
+        
+        return respData
     
     def getFile(self, filename, saveto):
         response = self.sendRequest('/file/%s/data' % filename, {}, True, False)
@@ -468,8 +498,24 @@ class SugarSync:
             else:
                 print('Folder could not be renamed (Code: %s)!' % (resp['status']))
 
-    def getFolderInfo(self, foldername):
-        pass
+    def getFolderInfo(self, foldername): # foldername is the id
+        resp = self.sendRequest('/folder/'+foldername, post=False)
+        respData = None
+
+        if resp is not None:
+            if int(resp.status) == 200:
+                print('Received successful.')
+                # data.. but in which method?
+                data = resp.read().decode('utf8')
+                respData = XMLElement.parse(data)
+
+            else:
+                print('Folder Informations could not be retrieved. (Code: %s)' % resp.status)
+
+        else:
+            print('Could not retrieve folder informations.')
+        
+        return respData
 
     def deleteFolder(self, foldername):
         resp, content = self.sendRequestDelete('/folder/'+foldername)   
