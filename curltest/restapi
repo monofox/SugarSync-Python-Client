@@ -1,0 +1,30 @@
+#!/bin/bash
+AUTHFILE="auth.url"
+AUTH=""
+BASE="https://api.sugarsync.com"
+METHOD=$1
+DEST="$BASE$2"
+XMLFILE=$3
+XML=""
+ 
+# make sure args were passed
+if [ $# -eq 0 ]; then
+        echo "usage: ./`basename $0` HTTP-METHOD DESTINATION_URI [XML]"
+        echo "example: ./`basename $0` POST \"/accounts\" \"<account><name>ed</name><email>ed@ed.com</email></account>\""
+        exit 1
+fi
+
+# read auth
+AUTH=`cat $AUTHFILE`
+
+# read xml
+XML=`cat $XMLFILE`
+
+# execute CURL call
+curl -k -H 'Accept: application/xml' -H 'Content-Type: application/xml' -H "Authorization: $AUTH" \
+-w '\nHTTP STATUS: %{http_code}\nTIME: %{time_total}\n' \
+-X $METHOD \
+-d "$XML" \
+"$DEST"
+ 
+exit 0
