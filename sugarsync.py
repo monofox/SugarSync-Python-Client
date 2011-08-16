@@ -1,10 +1,14 @@
 #!/usr/bin/env python3.2
 # -*- coding: utf-8 -*-
+#
+# author: Alexander Straube
+# author: Lukas Schreiner
+#
 
-import urllib.request, urllib.error, urllib.parse
+import urllib.request, urllib.error, urllib.parse, mimetypes
 from configparser import SafeConfigParser
 from httplib2 import Http, Response
-import re
+import re, os.path
 import datetime
 
 class SugarSync:
@@ -51,12 +55,14 @@ class SugarSync:
                    7: Delete a file\n \
                    8: Rename a folder\n \
                    9: Rename a file\n \
-                   10: Moving a file ::: DOES NOT WORK!\n \
+                   10: Moving a file\n \
                    11: Copy a file ::: DOES NOT WORK (400)\n \
                    12: Upload a file\n \
                    13: Download a file\n \
                    14: Get folder informations\n \
-                   15: Get file informations")
+                   15: Get file informations\n \
+                   16: Get JPEG-Thumbnail\n \
+                   17: Update file informations")
 
             want = int(input("What do you want?\n"))
             if want == 0:
@@ -162,6 +168,28 @@ class SugarSync:
                 file = input('File: ')
 
                 self.getFileInfo(file)
+            elif want == 16:
+                print('\nRetrieving file thumbnail...\n')
+                print('For your information: actual it only works if square: 1')
+
+                image = input('Image: ')
+                saveto = input('Save to: ')
+
+                pxmax = input('Width: ')
+                pymax = input('Height: ')
+                square = input('Square (0 => No, 1 => Yes): ')
+                rotate = input('Rotate (number of clockwise rotations): ')
+
+                self.getThumbnail(image, saveto, pxmax, pymax, square, rotate)
+            elif want == 17:
+                print('\nSet new file informations...\n')
+                
+                filename = input('File: ')
+                newname = input('New name (or leave blank): ')
+                mediatype = input('Media type (or leave blank): ')
+                parent = input('Parent (or leave blank): ')
+
+                self.updateFile(filename, newname, mediatype, parent)
             else:
                 print("\n\nWRONG input - Try again!\n\n")
 
@@ -206,24 +234,27 @@ class SugarSync:
 
     def sendRequest(self, path, data = {}, token = True, post = True, headers = {}):
         response = None
+        request = None
 
         if post:
             headers['Content-Type'] = 'application/xml; charset=UTF-8'
         if token:
-            headers['Authorization'] = self.token
+            headers['Authorization'] = '%s' % self.token
 
         try:
             if post:
                 request = urllib.request.Request(self.apiURL+path, data.encode('utf8'))
+            elif len(data) == 0:
+                request = urllib.request.Request(self.apiURL+path)
+            else:
+                print('I have data in sendRequest but i don\'t know what i should do with it :D')
+
+            if request is not None:
                 for k,v in headers.items():
                     request.add_header(k, v)
 
                 response = urllib.request.urlopen(request)
-            elif len(data) == 0:
-                request = urllib.request.Request(self.apiURL+path)
-                request.add_header('Authorization', self.token)
 
-                response = urllib.request.urlopen(request)
         except urllib.error.HTTPError as e:
             print('Error while requesting API call: %s (%s)' % (e.msg, e.code))
         except urllib.error.URLError as e:
@@ -231,12 +262,22 @@ class SugarSync:
             
         return response
  
-    def sendRequestPut(self, url, data = {}):
+    def sendRequestPut(self, url, data = {}, ctype = 'application/xml; charset=UTF-8', length = None, binary = False):
         response = None
 
-        headers = {'Authorization': self.token, 'Content-Type': 'application/xml; charset=UTF-8'}
+        if binary is False:
+            data = data.encode('utf8')
+
+        headers = {'Authorization': self.token}
+        
+        if type is not None:
+            headers['Content-Type'] = '%s' % ctype
+
+        if length is not None:
+            headers['Content-Length'] = '%s' % length
+
         h = Http(disable_ssl_certificate_validation=True)
-        resp, content = h.request(self.apiURL+url, 'PUT', data.encode('utf8'), headers)
+        resp, content = h.request(self.apiURL+url, 'PUT', data, headers)
 
         if content is not None:
             content = content.decode('utf8')
@@ -364,8 +405,9 @@ class SugarSync:
     def moveFile(self, file, newpath):
         data = XMLElement('file')
         data.setHead(self.xmlHead)
+        newpath = self.apiURL + '/folder/%s' % newpath
 
-        data.addChild(XMLElement('ParentCollection').addChild(XMLTextNode(newpath)))
+        data.addChild(XMLElement('parent').addChild(XMLTextNode(newpath)))
 
         resp, content = self.sendRequestPut('/file/%s' % file, data.toString())
         
@@ -415,18 +457,59 @@ class SugarSync:
             else:
                 print('File could not be downloaded (Code: %s)!' % (code))
 
+    def getThumbnail(self, image, saveto, xmax, ymax, square = 1, rotate=0):
+        header = {'Accept': 'image/jpeg; pxmax=%s; pymax=%s; sq=%s; r=%s;' % (xmax, ymax, square, rotate)}
+        response = self.sendRequest('/file/%s/data' % image, {}, True, False, header)
+
+        if response is not False and response is not None:
+            info = response.info()
+            code = response.getcode()
+            data = response.read()
+
+            if code == 200:
+                try:
+                    d = open(saveto, 'wb')
+                    d.write(data)
+                    d.close()
+
+                    print('Thumbnail downloaded and saved.')
+                except:
+                    print('Thumbnail downloaded but not saved.')
+            else:
+                print('Thumbnail could not be downloaded (Code: %s)!' % (code))
+        else:
+            print('Thumbnail could not be downloaded in cause of an None Object!')
+
+
     def uploadFile(self, file, filename):
         # we will read file
         data = None
-
+        binary = False
+        mimetype = None
+        length = None
+        
         try:
             d = open(file, 'r')
             data = d.read()
         except:
-            print('ERROR: File could not been read!')
+            try:
+                d = open(file, 'rb')
+                data = d.read()
+                binary = True
+            except:
+                print('ERROR: File could not be read!')
 
         if data is not None:
-            resp, content = self.sendRequestPut('/file/%s/data' % filename, data)
+            # mimetype
+            mimetypes.init()
+            mimetype = mimetypes.guess_type(file)
+            if mimetype[0] is not None:
+                mimetype = mimetype[0]
+
+            # length
+            length = os.path.getsize(file)
+
+            resp, content = self.sendRequestPut('/file/%s/data' % filename, data, mimetype, length, True)
 
             if resp is not None:
                 if int(resp['status']) == 204:
@@ -434,8 +517,37 @@ class SugarSync:
                 else:
                     print('File could not be uploaded (Code: %s)!' % (resp['status']))
 
-    def updateFile(self, filename, name, mediaType, parent = None):
-        pass
+    def updateFile(self, filename, name = '', mediaType = '', parent = ''):
+        resp = None
+        content = None
+
+        if parent != '':
+            parent = self.apiURL + '/folder/%s' % parent
+
+        if parent != '' or name != '' or mediaType != '':
+            data = XMLElement('file')
+            data.setHead(self.xmlHead)
+
+            if name != '':
+                data.addChild(XMLElement('displayName').addChild(XMLTextNode(name)))
+
+            if mediaType != '':
+                data.addChild(XMLElement('mediaType').addChild(XMLTextNode(mediaType)))
+
+            if parent != '':
+                data.addChild(XMLElement('parent').addChild(XMLTextNode(parent)))
+
+            resp, content = self.sendRequestPut('/file/%s' % filename, data.toString())
+
+            if resp is not None:
+                if int(resp['status']) == 200:
+                    content = XMLElement.parse(content) # here are the file infos ;-)
+
+                    print('File Information updated')
+                else:
+                    print('File information could not be updated (Code: %s)!' % (resp['status']))
+        else:
+            print('There is nothing to change O_o')
 
     def copyFile(self, source, target, name):
         data = XMLElement('fileCopy')
