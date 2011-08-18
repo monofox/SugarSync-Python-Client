@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<file>
+    <displayName>gina_blogspot.jpg</displayName>
+    <dsid>/sc/1234721/37_2071324300</dsid>
+    <timeCreated>2011-08-16T11:40:43.000-07:00</timeCreated>
+    <parent>https://api.sugarsync.com/folder/:sc:1234721:37_1569040712</parent>
+    <size>163129</size>
+    <lastModified>2011-08-16T11:57:30.000-07:00</lastModified>
+    <mediaType>image/jpeg</mediaType>
+    <presentOnServer>true</presentOnServer>
+    <fileData>https://api.sugarsync.com/file/:sc:1234721:37_2071324300/data</fileData>
+    <versions>https://api.sugarsync.com/file/:sc:1234721:37_2071324300/version</versions>
+    <publicLink enabled="true">https://www.sugarsync.com/pf/D6789276_82_7526879855</publicLink>
+    <image>
+        <height>1600</height>
+        <width>1081</width>
+        <rotation>0</rotation>
+    </image>
+</file>

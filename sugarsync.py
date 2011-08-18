@@ -4,9 +4,14 @@
 # author: Alexander Straube
 # author: Lukas Schreiner
 #
+# For debugging: please use the pudb from
+# https://github.com/orsenthil/pudb.git
+# because the original does not support python3!
 
 import urllib.request, urllib.error, urllib.parse, mimetypes
+#import urllib, urllib2
 from configparser import SafeConfigParser
+#from ConfigParser import SafeConfigParser
 from httplib2 import Http, Response
 import re, os.path
 import datetime
@@ -62,7 +67,8 @@ class SugarSync:
                    14: Get folder informations\n \
                    15: Get file informations\n \
                    16: Get JPEG-Thumbnail\n \
-                   17: Update file informations")
+                   17: Update file informations\n \
+                   18: Create public link")
 
             want = int(input("What do you want?\n"))
             if want == 0:
@@ -190,6 +196,12 @@ class SugarSync:
                 parent = input('Parent (or leave blank): ')
 
                 self.updateFile(filename, newname, mediatype, parent)
+            elif want == 18:
+                print('\nCreate public link for file...\n')
+
+                filename = input('File: ')
+
+                self.createPublicLink(filename)
             else:
                 print("\n\nWRONG input - Try again!\n\n")
 
@@ -578,6 +590,29 @@ class SugarSync:
             else:
                 print('File could not be deleted (Code: %s)!' % (resp['status']))
 
+    def createPublicLink(self, filename):
+        resp = None
+        content = None
+
+        data = XMLElement('file')
+        data.setHead(self.xmlHead)
+        
+        elm = XMLElement('publicLink')
+        elm.setAttribute('enabled', 'true')
+
+        data.addChild(elm)
+
+        resp, content = self.sendRequestPut('/file/%s' % filename, data.toString())
+
+        if resp is not None:
+            if int(resp['status']) == 200:
+                content = XMLElement.parse(content)
+                print('Created public link: %s' % content.publicLink)
+            else:
+                print('Could not create public link (Code: %s).' % resp['status'])
+        else:
+            print('Could not create public link (request failed).')
+
     def createFolder(self, path, foldername):
         data = XMLElement('folder')
         data.setHead(self.xmlHead)
@@ -749,17 +784,18 @@ class XMLElement:
     def parse(data, first = True):
         xmlpar = []
         
-        pattern = '<([^<>]+)>(.+)</\\1>'
+        pattern =  '<([^<>]+)?(( ([^<>]*)="(.*)")*)>(.+)</\\1>'
         m = re.compile(pattern, re.I | re.S)
         
         if m.search(data) is not None:
             xml = m.findall(data)
+
             for f in xml:
                 # 0: key, 1: value
                 xmltmp = XMLElement(f[0])
                 
                 # we need childs!
-                ch = XMLElement.parse(f[1], False)
+                ch = XMLElement.parse(f[5], False)
                 if ch is not None:
                     for k in ch:
                         xmltmp.addChild(k)
