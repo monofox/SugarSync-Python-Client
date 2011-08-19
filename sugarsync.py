@@ -7,12 +7,15 @@
 # For debugging: please use the pudb from
 # https://github.com/orsenthil/pudb.git
 # because the original does not support python3!
+#
+# now TODO: implement an bash like behavior.
 
 import urllib.request, urllib.error, urllib.parse, mimetypes
 #import urllib, urllib2
 from configparser import SafeConfigParser
 #from ConfigParser import SafeConfigParser
 from httplib2 import Http, Response
+from SugarSyncShell import SugarSyncShell
 import re, os.path
 import datetime
 
@@ -48,29 +51,39 @@ class SugarSync:
     def cmd(self):
         self.exit = False
         while self.exit is False:
+            # Menu adding informations: ###: information \n \
             print("\n\n\n \
                    ==== M - E - N - U ====\n\n \
-                   0: Exit\n \
-                   1: Authenticate\n \
-                   2: User info\n \
-                   3: load contents collection\n \
-                   4: Creating a new folder\n \
-                   5: Delete a folder\n \
-                   6: Creating a new file\n \
-                   7: Delete a file\n \
-                   8: Rename a folder\n \
-                   9: Rename a file\n \
-                   10: Moving a file\n \
-                   11: Copy a file ::: DOES NOT WORK (400)\n \
-                   12: Upload a file\n \
-                   13: Download a file\n \
-                   14: Get folder informations\n \
-                   15: Get file informations\n \
-                   16: Get JPEG-Thumbnail\n \
-                   17: Update file informations\n \
-                   18: Create public link")
+                     0: Exit\n \
+                     1: Authenticate\n \
+                     2: User info\n \
+                     3: load contents collection\n \
+                     4: Creating a new folder\n \
+                     5: Delete a folder\n \
+                     6: Creating a new file\n \
+                     7: Delete a file\n \
+                     8: Rename a folder\n \
+                     9: Rename a file\n \
+                    10: Moving a file\n \
+                    11: Copy a file ::: DOES NOT WORK (400)\n \
+                    12: Upload a file\n \
+                    13: Download a file\n \
+                    14: Get folder informations\n \
+                    15: Get file informations\n \
+                    16: Get JPEG-Thumbnail\n \
+                    17: Update file informations\n \
+                    18: Create public link\n \
+                    19: Destroy public link\n \
+                    20: Get file history\n \
+                    21: Enter Commandline\n \
+                    \n \
+                   ====  SUGAR  SYNC  ====")
+            
+            try:
+                want = int(input("What do you want?\n"))
+            except:
+                want = -1
 
-            want = int(input("What do you want?\n"))
             if want == 0:
                 print("\nExiting...\n")
                 self.exit = True
@@ -131,11 +144,11 @@ class SugarSync:
             elif want == 10:
                 print('\nMoving a file...\n')
                 # we need the file
-                file = input('File: ')
+                filename = input('File: ')
                 # we need the new path
                 path = input('New path (collection): ')
 
-                self.moveFile(file, path)
+                self.moveFile(filename, path)
             elif want == 11:
                 print('\nCopy a file...\n')
                 # we need the source
@@ -149,19 +162,19 @@ class SugarSync:
             elif want == 12:
                 print('\nUploading a file...\n')
                 # we need the filename
-                file = input('File to be uploaded (local!): ')
+                filename = input('File to be uploaded (local!): ')
                 # remote file
                 filename = input('File in SugarSync: ')
 
-                self.uploadFile(file, filename)
+                self.uploadFile(filename, filename)
             elif want == 13:
                 print('\nDownloading a file...\n')
                 # we need the file
-                file = input('File (remote): ')
+                filename = input('File (remote): ')
                 # save to?
                 saveto = input('Save to (with filename): ')
 
-                self.getFile(file, saveto)
+                self.getFile(filename, saveto)
             elif want == 14:
                 print('\nRetrieving folder informations...\n')
                 # we need folder id
@@ -171,9 +184,9 @@ class SugarSync:
             elif want == 15:
                 print('\nRetrieving file informations...\n')
                 # we need file id
-                file = input('File: ')
+                filename = input('File: ')
 
-                self.getFileInfo(file)
+                self.getFileInfo(filename)
             elif want == 16:
                 print('\nRetrieving file thumbnail...\n')
                 print('For your information: actual it only works if square: 1')
@@ -201,7 +214,23 @@ class SugarSync:
 
                 filename = input('File: ')
 
-                self.createPublicLink(filename)
+                self.setPublicLink(filename, True)
+            elif want == 19:
+                print('\nDestroy public link for file...\n')
+
+                filename = input('File: ')
+
+                self.setPublicLink(filename, False)
+            elif want == 20:
+                print('\nGet file version history...\n')
+
+                filename = input('File: ')
+
+                self.getFileHistory(filename)
+            elif want == 21:
+                print('\nWelcome to SugarSync-Python-Client Commandline...\n')
+
+                self.startCommandline()
             else:
                 print("\n\nWRONG input - Try again!\n\n")
 
@@ -380,7 +409,20 @@ class SugarSync:
             self.tokenExpire = resp.expiration
 
     def addElementToDatabase(self, file, location):
+        # this is for sync. TODO: implment element adding to database.
         pass
+
+    def startCommandline(self):
+        # TODO: commandline!!!
+
+        # starting with folder->syncfolders
+        startdir = self.config.get('folder', 'syncfolders')
+        startdir = startdir[25:] # its temp. We should implement this in an other way.
+
+        # we have the problem, that we start within an collection!
+        # so we can't use getFileInfo.
+
+        ssh = SugarSyncShell(self, startdir)
 
     def createFile(self, path, filename, media):
         data = XMLElement('file')
@@ -429,8 +471,11 @@ class SugarSync:
             else:
                 print('File could not be moved (Code: %s)!' % (resp['status']))
 
-    def getFileInfo(self, filename): # filename => file id
-        resp = self.sendRequest('/file/'+filename, post=False)
+    def getFileInfo(self, filename, absolut=False): # filename => file id
+        if absolut is False:
+            filename = '/file/' + filename
+
+        resp = self.sendRequest(filename, post=False)
         respData = None
 
         if resp is not None:
@@ -468,6 +513,23 @@ class SugarSync:
                     print('File downloaded but not saved.')
             else:
                 print('File could not be downloaded (Code: %s)!' % (code))
+
+    def getFileHistory(self, filename):
+        response = self.sendRequest('/file/%s/version' % filename, {}, True, False)
+
+        if response is not False and response is not None:
+            info = response.info()
+            code = response.getcode()
+            data = XMLElement.parse(response.read().decode('utf8'))
+
+            if code == 200:
+                print('Got file history successfully.')
+            else:
+                print('Error on getting history (Code: %s)!' % (code))
+
+        else:
+            print('Request failed.')
+
 
     def getThumbnail(self, image, saveto, xmax, ymax, square = 1, rotate=0):
         header = {'Accept': 'image/jpeg; pxmax=%s; pymax=%s; sq=%s; r=%s;' % (xmax, ymax, square, rotate)}
@@ -590,7 +652,7 @@ class SugarSync:
             else:
                 print('File could not be deleted (Code: %s)!' % (resp['status']))
 
-    def createPublicLink(self, filename):
+    def setPublicLink(self, filename, create=True):
         resp = None
         content = None
 
@@ -598,7 +660,10 @@ class SugarSync:
         data.setHead(self.xmlHead)
         
         elm = XMLElement('publicLink')
-        elm.setAttribute('enabled', 'true')
+        if create:
+            elm.setAttribute('enabled', 'true')
+        else:
+            elm.setAttribute('enabled', 'false')
 
         data.addChild(elm)
 
@@ -607,11 +672,14 @@ class SugarSync:
         if resp is not None:
             if int(resp['status']) == 200:
                 content = XMLElement.parse(content)
-                print('Created public link: %s' % content.publicLink)
+                if create:
+                    print('Created public link: %s' % content.publicLink)
+                else: 
+                    print('Public link destroyed successful.')
             else:
-                print('Could not create public link (Code: %s).' % resp['status'])
+                print('Could not create/destroy public link (Code: %s).' % resp['status'])
         else:
-            print('Could not create public link (request failed).')
+            print('Could not create/destroy public link (request failed).')
 
     def createFolder(self, path, foldername):
         data = XMLElement('folder')
@@ -845,31 +913,5 @@ class Printer:
                 value = getattr(PrintableClass,name)
                 if  '_' not in str(name).join(str(value)):
                     print('  .%s: %r' % (name, value))
-
-# auth: https://www.sugarsync.com/developers/rest-api-reference/actions/authorization/index.html
-string = '<?xml version="1.0" encoding="UTF-8" ?><authorization><expiration>2010-10-22T02:01:54.964-07:00</expiration><user>https://api.sugarsync.com/user/566494</user></authorization>'
-# user info: https://www.sugarsync.com/developers/rest-api-reference/actions/retrievingUserRepresentation/index.html
-string = '<?xml version="1.0" encoding="UTF-8"?><user><username>jsmith@sharpcast.com</username><nickname>jsmith</nickname><quota><limit>2000000000</limit> <!-- total storage available to the user, in bytes -->     <usage>345000000</usage>  <!-- total storage in use by the user, in bytes --></quota><workspaces>https://api.sugarsync.com/workspace<workspaces/><syncfolders>https://api.sugarsync.com/folder<syncfolders/></user>'
-# file info: https://www.sugarsync.com/developers/rest-api-reference/actions/retrievingFileRepresentation/index.html
-string = '<?xml version="1.0" encoding="UTF-8"?><file><displayName>Foo</displayName><size>120233</size><lastModified>2009-09-25T16:49:56.000-07:00</lastModified><timeCreated>2009-09-25T16:49:56.000-07:00</timeCreated><mediaType>image/jpeg</mediaType><presentOnServer>true</presentOnServer><parent>http://api.sugarsync.com/folder/xyzzy</parent><fileData>http://api.sugarsync.com/file/abc123/data</fileData></file>'
-# folder info: https://www.sugarsync.com/developers/rest-api-reference/actions/retrievingFolderRepresentation/index.html
-# workspace info: https://www.sugarsync.com/developers/rest-api-reference/actions/retrievingWorkspaceRepresentation/index.html
-# CollectionContents info: https://www.sugarsync.com/developers/rest-api-reference/actions/retrievingCollectionContentsRepresentation/index.html
-# create file: https://www.sugarsync.com/developers/rest-api-reference/actions/CreatingFiles/index.html
-# create folder: https://www.sugarsync.com/developers/rest-api-reference/actions/CreatingFolders/index.html
-# update folder state: https://www.sugarsync.com/developers/rest-api-reference/actions/updatingFolderState/index.html
-# update file info: https://www.sugarsync.com/developers/rest-api-reference/actions/updatingFileInformation/index.html
-# delete folder: https://www.sugarsync.com/developers/rest-api-reference/actions/deletingFolders/index.html
-# delete file: https://www.sugarsync.com/developers/rest-api-reference/actions/deletingFiles/index.html
-# copy file: https://www.sugarsync.com/developers/rest-api-reference/actions/CopyingFiles/index.html
-# putting filedata: https://www.sugarsync.com/developers/rest-api-reference/actions/puttingFileData/index.html
-# getting filedata: https://www.sugarsync.com/developers/rest-api-reference/actions/gettingFileData/index.html
-# files collection: https://www.sugarsync.com/developers/rest-api-reference/actions/allFilesCollection/index.html
-# version history: https://www.sugarsync.com/developers/rest-api-reference/actions/versionHistory/index.html
-# public link manage: https://www.sugarsync.com/developers/rest-api-reference/actions/publicLinkManagement/index.html
-# photo album access: https://www.sugarsync.com/developers/rest-api-reference/actions/photoAlbumAccess/index.html
-# image transcoding: https://www.sugarsync.com/developers/rest-api-reference/actions/imageTranscoding/index.html
-#resp = XMLElement.parse(string)
-#Printer(resp)
 
 ss = SugarSync()
