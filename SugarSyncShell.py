@@ -3,7 +3,10 @@
 #
 # author: Alexander Straube
 # author: Lukas Schreiner
-#
+# 
+# For editors/contributors: please add an author tag above - 
+# for a full list ;-)
+# 
 # Be careful! This communicates directly with sugarsync! (only names are cached!)
 
 #from sugarsync import Printer, XMLElement, XMLTextNode

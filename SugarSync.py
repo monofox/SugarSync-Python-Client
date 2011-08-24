@@ -1,8 +1,11 @@
-#!/usr/bin/env python3.2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 # author: Alexander Straube
 # author: Lukas Schreiner
+# 
+# For editors/contributors: please add an author tag above - 
+# for a full list ;-)
 #
 # For debugging: please use the pudb from
 # https://github.com/orsenthil/pudb.git
@@ -20,7 +23,7 @@ import re, os.path
 import datetime
 
 class SugarSync:
-    def __init__(self):
+    def __init__(self, cmd=False):
         # will be written to config.ini on exit and loaded on startup
         self.username = ''
         self.password = ''
@@ -45,7 +48,14 @@ class SugarSync:
         # Call functions
         self.readConfig()
         self.checkAuth()
-        self.cmd()
+
+        # only execute menue if cmd is true!
+        if cmd:
+            self.cmd()
+        
+    def __destruct__(self):
+        # write config
+        print('Saving config...\n')
         self.writeConfig()
 
     def cmd(self):
@@ -758,8 +768,8 @@ class SugarSync:
     def getWorkspace(self, pcid):
         pass
 
-    def getCollectionContentInfo(self, typ = 'all', start = 0, maxnumber = 500):
-
+    def getCollectionContentInfo(self, link, typ = 'all', start = 0, maxnumber = 500):
+        # IMPORTANT @ TODO !!!
         pass
 
     def getAllFilesCollection(self):
@@ -914,4 +924,4 @@ class Printer:
                 if  '_' not in str(name).join(str(value)):
                     print('  .%s: %r' % (name, value))
 
-ss = SugarSync()
+ss = SugarSync(True)
