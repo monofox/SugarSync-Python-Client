@@ -14,14 +14,9 @@ class SugarSyncDirectory:
     # this is mainly for directories. But collections are nearly identicaly.
     # so we will handle it normal and will create subdirs
 
-    def __init__(self, sync, link, collection=False):
+    def __init__(self, sync, link):
         self.sync = sync
         
-        # attributes
-        # if this directory is a fake and so
-        # a collection: set it to true
-        self.collection = collection
-
         # link can be a link or an dsid
         # we have to find it out. I think the best is via collection=True or False
         self.link = link
@@ -38,17 +33,9 @@ class SugarSyncDirectory:
         # nearly i've forgotten the children :D
         self.children = [] # or dict ( with id : object ) ?
 
-        if self.collection:
-            self.initCollection()
-        elif not self.retrieveInfo():
+        if not self.retrieveInfo():
             print('Error retrieving information for \'%s\'' % link)
 
-    def initCollection(self):
-        if self.collection:
-            f = self.sync.getCollectionContentInfo(self.link) # we can use self.link, because its full link.
-            # then do it.
-            # TODO .
-    
     # adding is simple. But removing? xD
     def addChild(self, child):
         self.children.add(child)

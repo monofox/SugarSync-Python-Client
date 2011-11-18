@@ -18,7 +18,9 @@ import urllib.request, urllib.error, urllib.parse, mimetypes
 from configparser import SafeConfigParser
 #from ConfigParser import SafeConfigParser
 from httplib2 import Http, Response
+from Printer import Printer
 from SugarSyncShell import SugarSyncShell
+from SugarSyncCollection import SugarSyncCollection
 import re, os.path
 import datetime
 
@@ -52,8 +54,8 @@ class SugarSync:
         # only execute menue if cmd is true!
         if cmd:
             self.cmd()
-        
-    def __destruct__(self):
+
+    def __del__(self):
         # write config
         print('Saving config...\n')
         self.writeConfig()
@@ -308,6 +310,7 @@ class SugarSync:
 
         except urllib.error.HTTPError as e:
             print('Error while requesting API call: %s (%s)' % (e.msg, e.code))
+            print('URL: %s' % (self.apiURL+path))
         except urllib.error.URLError as e:
             print('Error while requesting API call: %s' % (e.reason))
             
@@ -378,8 +381,8 @@ class SugarSync:
                 diff = hour/24
                 day += int(diff)
                 diff = diff-int(diff)
-                hour = diff*24
-
+                hour = int(diff*24)
+                            
             dd = datetime.datetime(year, month, day, hour, minute, second)
 
             return dd
@@ -415,6 +418,7 @@ class SugarSync:
         if response is not None:
             info = response.info()
             self.token = info['Location']
+            print(self.token)
             resp = XMLElement.parse(response.read().decode('utf8'))
             self.tokenExpire = resp.expiration
 
@@ -428,6 +432,9 @@ class SugarSync:
         # starting with folder->syncfolders
         startdir = self.config.get('folder', 'syncfolders')
         startdir = startdir[25:] # its temp. We should implement this in an other way.
+        
+        # startdir will be an object. so create it here.
+        startdir = SugarSyncCollection(self, startdir)
 
         # we have the problem, that we start within an collection!
         # so we can't use getFileInfo.
@@ -769,8 +776,21 @@ class SugarSync:
         pass
 
     def getCollectionContentInfo(self, link, typ = 'all', start = 0, maxnumber = 500):
-        # IMPORTANT @ TODO !!!
-        pass
+        if typ in ['file','folder']:
+            typ = '&type=%s' % typ
+        else:
+            typ = ''
+            
+        response = self.sendRequest(link+'?start=%i&max=%i%s' % (start,maxnumber,typ), {}, True, False)
+
+        if response is not None:
+            raw_data = response.read().decode('utf8')
+            data = XMLElement.parse(raw_data)
+
+            return data
+
+        else:
+            return None
 
     def getAllFilesCollection(self):
         response = self.sendRequest('/user', {}, True, False)
@@ -862,12 +882,14 @@ class XMLElement:
     def parse(data, first = True):
         xmlpar = []
         
-        pattern =  '<([^<>]+)?(( ([^<>]*)="(.*)")*)>(.+)</\\1>'
+        pattern =  '<([^<>]+)?(( ([^<>]*)="([^<>]*)")*)>(.+)</\\1>'
+        # following pattern is not useable because we will not get an hierachie.
+        # pattern =  '<([^<>]+)?(( ([^<>]*)="([^<>]*)")*)>([^<>]+)</\\1>'
         m = re.compile(pattern, re.I | re.S)
         
         if m.search(data) is not None:
             xml = m.findall(data)
-
+                           
             for f in xml:
                 # 0: key, 1: value
                 xmltmp = XMLElement(f[0])
@@ -915,13 +937,5 @@ class XMLTextNode:
         
     def toString(self):
         return self.value
-
-class Printer:
-    def __init__ (self, PrintableClass):
-        for name in dir(PrintableClass):
-            if name is not "__abstractmethods__":
-                value = getattr(PrintableClass,name)
-                if  '_' not in str(name).join(str(value)):
-                    print('  .%s: %r' % (name, value))
 
 ss = SugarSync(True)
