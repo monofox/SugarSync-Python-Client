@@ -9,10 +9,14 @@
 # 
 # Be careful! This communicates directly with sugarsync! (only names are cached!)
 
-#from sugarsync import Printer, XMLElement, XMLTextNode
 from SugarSyncCollection import SugarSyncCollection
+from SugarSyncDirectory import SugarSyncDirectory
+from SugarSyncFile import SugarSyncFile
 from Colors import Colors
 from console import Console
+from Printer import Printer
+from XMLElement import XMLElement
+from XMLTextNode import XMLTextNode
 
 class SugarSyncShell:
 
@@ -73,14 +77,47 @@ class SugarSyncShell:
             except KeyError as ke:
                 print('Wrong input.')
 
-    
+    def searchPath(self, path):
+        # TODO: make it performanenter with while instead of for ?
+        data = None
+        elm = self.path[len(self.path)-1]
+        elm = elm.getChildren()
+
+        if elm is not None:
+            for k,v in elm.items():
+                if str(v.getName()).strip() == path.strip():
+                    data = v
+        
+        return data
+
     def clear(self, param):
         (width, height) = Console.getTerminalSize()
         for f in range(0,height):
             print('');
 
     def cd(self, param):
-        pass
+        # TODO: at this point its very pre-release...
+        # we have to trim the param
+        param = param.strip()
+        if param[len(param)-1:] == '/':
+            param = param[:-1]
+
+        # and split on / ?
+
+        if param == '.':
+            return True
+        elif param == '..':
+            self.path.pop()
+        else:
+            # search
+            path = self.searchPath(param)
+            if path is not None:
+                self.path.append(path)
+                return True
+            else:
+                print('Could not change the directory.')
+                return False
+    
 
     def ls(self, param):
         # get actual element:
@@ -91,7 +128,10 @@ class SugarSyncShell:
             print(Colors.c('../', Colors.BLUE))
 
         for k,v in elm.getChildren().items():
-            print(k)
+            if isinstance(v, SugarSyncDirectory):
+                print(Colors.c(str(k) + '/', Colors.BLUE))
+            else:
+                print(k)
 
     def pwd(self, param):
         print(self.getPath(False, False)) # withour header and without color

@@ -37,9 +37,21 @@ class SugarSyncCollection:
 
         else:
             print('Wait and analyze the class')
-            print(data)
-            #for d in data.childs:
-            #    print(d)
+            for collection in data.childs:
+                tmp = None
+                if collection.hasAttribute('type') and collection.getAttribute('type') == 'syncFolder':
+                    tmp = SugarSyncDirectory(self.sync, collection.ref)
+                    tmp.setName(collection.displayName)
+                    tmp.setParent(self)
+                else:
+                    tmp = SugarSyncFile(self.sync, collection.ref)
+                    tmp.setParent(self)
+
+                if tmp is not None:
+                    self.addChild(tmp)
+
+                #print(vars(collection))
+                #print('\n--\n')
     
     def addChild(self, child):
         self.children[child.getName()] = child

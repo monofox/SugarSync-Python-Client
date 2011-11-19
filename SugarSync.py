@@ -21,6 +21,9 @@ from httplib2 import Http, Response
 from Printer import Printer
 from SugarSyncShell import SugarSyncShell
 from SugarSyncCollection import SugarSyncCollection
+from XMLTextNode import XMLTextNode
+from XMLElement import XMLElement
+from XMLParser import XMLParser
 import re, os.path
 import datetime
 
@@ -418,7 +421,6 @@ class SugarSync:
         if response is not None:
             info = response.info()
             self.token = info['Location']
-            print(self.token)
             resp = XMLElement.parse(response.read().decode('utf8'))
             self.tokenExpire = resp.expiration
 
@@ -785,7 +787,9 @@ class SugarSync:
 
         if response is not None:
             raw_data = response.read().decode('utf8')
-            data = XMLElement.parse(raw_data)
+            #print(raw_data)
+            #data = XMLElement.parse(raw_data)
+            data = XMLParser.parse(raw_data)
 
             return data
 
@@ -813,129 +817,6 @@ class SugarSync:
         
             print("Data loaded! \n\n")
 
-class XMLElement:
-    
-    def __init__(self, name=''):
-        self.name = name
-        self.attributes = {}
-        self.childs = []
-        self.childIsText = False
-        self.head = None
-        self.value = None
-        
-    def getName(self):
-        return self.name
-    
-    def setHead(self, value):
-        self.head = value
-        
-    def removeHead(self):
-        self.head = None
-    
-    def setAttribute(self, name, value):
-        self.attributes[name] = value
-    
-    def removeAttribute(self, name):
-        try:
-            del self.attributes[name]
-        except:
-            print("Element doesn't exist!")
-    
-    def addChild(self, elm):
-        # there can't be more than 1 child if elm == XMLTextNode
-        
-        self.childs.append(elm)
-        
-        # we want an dynamic element!
-        if elm.getName() is None:
-            # this is an XMLTextNode
-            self.value = elm.getValue()
-        else:
-            setattr(self, elm.getName(), elm)
-        
-        return self # for compact usage
-        
-    
-    def getAttributes(self):
-        attr = ''
-        for k,f in self.attributes.items():
-            attr = attr+' %s="%s"' % (k, f)
-    
-        return attr
-    
-    def getChilds(self):
-        xml = ''
-        for f in self.childs:
-            xml = xml+f.toString()
-            
-        return xml
-    
-    def toString(self):
-        xml = ''
-        if self.head is not None:
-            xml = self.head
-        xml = xml + '<%s%s>%s</%s>' % (self.name, self.getAttributes(), self.getChilds(), self.name)
-        
-        return xml
-    
-    @staticmethod
-    def parse(data, first = True):
-        xmlpar = []
-        
-        pattern =  '<([^<>]+)?(( ([^<>]*)="([^<>]*)")*)>(.+)</\\1>'
-        # following pattern is not useable because we will not get an hierachie.
-        # pattern =  '<([^<>]+)?(( ([^<>]*)="([^<>]*)")*)>([^<>]+)</\\1>'
-        m = re.compile(pattern, re.I | re.S)
-        
-        if m.search(data) is not None:
-            xml = m.findall(data)
-                           
-            for f in xml:
-                # 0: key, 1: value
-                xmltmp = XMLElement(f[0])
-                
-                # we need childs!
-                ch = XMLElement.parse(f[5], False)
-                if ch is not None:
-                    for k in ch:
-                        xmltmp.addChild(k)
-                
-                xmlpar.append(xmltmp)
-        elif data is not None:
-            xmlpar.append(XMLTextNode(data))
-        else:
-            xmlpar = None
-        
-        if first and xmlpar is not None and len(xmlpar) == 1:
-            xmlpar = xmlpar[0]
-        
-        return xmlpar
-    
-    def repr(self):
-        self.__repr__(True)
-    
-    def __repr__(self, ram = False):
-        if self.value == None or ram:
-            # normal resp
-            return "<%s instance at %s>" % (self.__class__,id(self))
-        else:
-            return self.value
-    
-class XMLTextNode:
-    
-    def __init__(self, value=''):
-        self.value = value
-        
-    def getName(self):
-        return None
-        
-    def setValue(self, value):
-        self.value = value
-        
-    def getValue(self):
-        return self.value
-        
-    def toString(self):
-        return self.value
 
-ss = SugarSync(True)
+if __name__ == "__main__":
+    ss = SugarSync(True)

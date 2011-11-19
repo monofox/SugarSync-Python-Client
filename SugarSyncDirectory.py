@@ -9,6 +9,7 @@
 # For debugging: please use the pudb from
 # https://github.com/orsenthil/pudb.git
 # because the original does not support python3!
+from XMLElement import XMLElement
 
 class SugarSyncDirectory:
     # this is mainly for directories. But collections are nearly identicaly.
@@ -31,18 +32,24 @@ class SugarSyncDirectory:
         self.name = ''
 
         # nearly i've forgotten the children :D
-        self.children = [] # or dict ( with id : object ) ?
+        self.children = {} # or dict ( with id : object ) ?
 
         if not self.retrieveInfo():
             print('Error retrieving information for \'%s\'' % link)
 
     # adding is simple. But removing? xD
     def addChild(self, child):
-        self.children.add(child)
+        self.children[child.getName()] = child
 
     # easy too ;-)
     def removeChild(self, child):
-        self.children.remove(child)
+        try:
+            del self.children.remove[child]
+        except:
+            print("Child doesn't exist!")
+
+    def getChildren(self):
+        return self.children
 
     def getTime(self):
         return self.ctime
@@ -54,9 +61,13 @@ class SugarSyncDirectory:
         pass
 
     def getName(self):
-        # why adding '/' at the end? So we can see that this is a directory
-        # later via colors?
-        return '%s/' % self.name
+        return self.name
+
+    def setName(self, name):
+        if isinstance(name, XMLElement):
+            self.name = name.getValue()
+        else:
+            self.name = name
 
     def setParent(self, parent):
         self.parent = parent

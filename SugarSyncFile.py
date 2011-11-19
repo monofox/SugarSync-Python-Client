@@ -12,5 +12,10 @@
 
 class SugarSyncFile:
 
-    def __init__(self, sync):
+    def __init__(self, sync, link):
         self.sync = sync
+        self.link = link
+        self.parent = None
+
+    def setParent(self, parent):
+        self.parent = parent
