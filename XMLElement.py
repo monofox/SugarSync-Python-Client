@@ -13,7 +13,7 @@ from XMLTextNode import XMLTextNode
 class XMLElement:
     
     def __init__(self, name=''):
-        self.name = name
+        self.name = str(name)
         self.attributes = {}
         self.childs = []
         self.childIsText = False
@@ -74,6 +74,9 @@ class XMLElement:
             attr = attr+' %s="%s"' % (k, f)
     
         return attr
+    
+    def getChildren(self):
+        return self.childs
     
     def getChilds(self):
         xml = ''

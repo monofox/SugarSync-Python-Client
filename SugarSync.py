@@ -256,6 +256,7 @@ class SugarSync:
 
         self.username = self.config.get('user', 'username')
         self.password = self.config.get('user', 'password')
+        self.nickname = self.config.get('user', 'nickname')
         self.accessKeyId = self.config.get('connection', 'accessKeyId')
         self.privateAccessKey = self.config.get('connection', 'privateAccessKey')
         self.apiURL = self.config.get('connection', 'url')
@@ -274,6 +275,7 @@ class SugarSync:
     def writeConfig(self):
         self.config.set('user', 'username', str(self.username))
         self.config.set('user', 'password', str(self.password))
+        self.config.set('user', 'nickname', str(self.nickname))
         self.config.set('connection', 'accessKeyId', str(self.accessKeyId))
         self.config.set('connection', 'privateAccessKey', str(self.privateAccessKey))
         self.config.set('connection', 'url', str(self.apiURL))
@@ -423,6 +425,8 @@ class SugarSync:
             self.token = info['Location']
             resp = XMLElement.parse(response.read().decode('utf8'))
             self.tokenExpire = resp.expiration
+            # get the user info
+            self.getUser()
 
     def addElementToDatabase(self, file, location):
         # this is for sync. TODO: implment element adding to database.
@@ -782,7 +786,10 @@ class SugarSync:
             typ = '&type=%s' % typ
         else:
             typ = ''
-            
+        
+        if link[:1] != '/':
+            link = '/'+link
+
         response = self.sendRequest(link+'?start=%i&max=%i%s' % (start,maxnumber,typ), {}, True, False)
 
         if response is not None:
@@ -793,6 +800,26 @@ class SugarSync:
 
             return data
 
+        else:
+            return None
+
+    def getFolderContents(self, link, typ = 'all', start = 0, maxnumber = 500):
+        if typ in ['file','folder']:
+            typ = '&type=%s' % typ
+        else:
+            typ = ''
+          
+        if link[:1] != '/':
+            link = '/'+link
+
+        link = '/folder' + link
+
+        response = self.sendRequest(link+'/contents?start=%i&max=%i%s' % (start,maxnumber,typ), {}, True, False)
+        if response is not None:
+            raw_data = response.read().decode('utf8')
+            data = XMLParser.parse(raw_data)
+
+            return data
         else:
             return None
 
