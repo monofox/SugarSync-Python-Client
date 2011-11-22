@@ -448,6 +448,7 @@ class SugarSync:
         ssh = SugarSyncShell(self, startdir)
 
     def createFile(self, path, filename, media):
+        location = None
         data = XMLElement('file')
         data.setHead(self.xmlHead)
 
@@ -464,6 +465,8 @@ class SugarSync:
                 print('File created with success. Location: %s' % location)
             else:
                 print('File could not be deleted (Code: %s)!' % (code))
+
+        return location
 
     def renameFile(self, path, newname):
         data = XMLElement('file')
@@ -522,18 +525,34 @@ class SugarSync:
         if response is not False:
             info = response.info()
             code = response.getcode()
-            data = response.read().decode('utf8')
+            data = response.read()
+            try:
+                data = data.decode('utf8')
+            except UnicodeDecodeError: 
+                print('Save as not utf-8 file')
 
             if code == 200:
                 # now write
-                try:
-                    d = open(saveto, 'w')
-                    d.write(data)
-                    d.close()
+                if isinstance(data, str):
+                    try:
+                        d = open(saveto, 'w')
+                        d.write(data)
+                        d.close()
 
-                    print('File downloaded and saved.')
-                except:
-                    print('File downloaded but not saved.')
+                        print('File downloaded and saved.')
+                    except Exception as e:
+                        print('File downloaded but not saved.')
+                        print(type(e))
+                else:
+                    try:
+                        d = open(saveto, 'wb')
+                        d.write(data)
+                        d.close()
+
+                        print('File downloaded and saved.')
+                    except Exception as e:
+                        print('File downloaded but not saved.')
+                        print(type(e))
             else:
                 print('File could not be downloaded (Code: %s)!' % (code))
 
@@ -578,7 +597,8 @@ class SugarSync:
             print('Thumbnail could not be downloaded in cause of an None Object!')
 
 
-    def uploadFile(self, file, filename):
+    def uploadFile(self, lfile, filename, create=False):
+        """ filename can be a file id (on create=False) or an target folder with name! """
         # we will read file
         data = None
         binary = False
@@ -586,25 +606,45 @@ class SugarSync:
         length = None
         
         try:
-            d = open(file, 'r')
+            d = open(lfile, 'r')
             data = d.read()
         except:
             try:
-                d = open(file, 'rb')
+                d = open(lfile, 'rb')
                 data = d.read()
                 binary = True
             except:
                 print('ERROR: File could not be read!')
 
         if data is not None:
+            # we have load all so we can close it
+            d.close()
+
             # mimetype
             mimetypes.init()
-            mimetype = mimetypes.guess_type(file)
+            mimetype = mimetypes.guess_type(lfile)
             if mimetype[0] is not None:
                 mimetype = mimetype[0]
-
+            else:
+                mimetype = 'text/plain'
+                           
             # length
-            length = os.path.getsize(file)
+            length = os.path.getsize(lfile)
+
+            # lets create it ;-)
+            if create:
+                fsplit = filename.split('/')
+                if len(fsplit) == 2:
+                    location = self.createFile(fsplit[0], fsplit[1], mimetype)
+                    if location is not None:
+                        location = location.split('/')
+                        filename = location[len(location)-1]
+                    else:
+                        print('File could not be created!')
+                        return None
+                else:
+                    print('Wrong parameter!')
+                    return None
 
             resp, content = self.sendRequestPut('/file/%s/data' % filename, data, mimetype, length, True)
 
@@ -769,8 +809,8 @@ class SugarSync:
 
         if response is not None:
             resp = XMLElement.parse(response.read().decode('utf8'))
-            self.username = resp.username
-            self.nickname = resp.nickname
+            self.username = str(resp.username)
+            self.nickname = str(resp.nickname)
             self.quotaLimit = resp.quota.limit
             self.quotaUsage = resp.quota.usage
             print("Username:\t", self.username)

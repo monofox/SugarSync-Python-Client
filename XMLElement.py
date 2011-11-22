@@ -20,6 +20,9 @@ class XMLElement:
         self.head = None
         self.value = None
         
+    def setName(self, name):
+        self.name = str(name)
+
     def getName(self):
         return self.name
     

@@ -35,6 +35,7 @@ class SugarSyncShell:
                 'clear': self.clear,
                 'cd': self.cd,
                 'get': self.get,
+                'put': self.put,
                 'ls': self.ls,
                 'lpwd': self.lpwd,
                 'lcd' : self.lcd,
@@ -161,7 +162,7 @@ class SugarSyncShell:
         elm = self.searchPath(param, SugarSyncShell.TYPE_FILE)
         if elm is not None:
             # filename ? and check if its exist...
-            fname = elm.getName()
+            fname = str(elm.getName())
             if os.path.lexists(self.localPath+'/'+fname):
                 # overwrite?
                 overwrite = None
@@ -185,14 +186,51 @@ class SugarSyncShell:
                 os.remove(self.localPath+'/'+fname)
             
             if overwrite:
-                self.sync.getFile(elm.getLink(), self.localPath+'/'+fname)
+                self.sugarsync.getFile(elm.getLink(), self.localPath+'/'+fname)
 
         else:
             print('Could not find the file.')
             return False
 
     def put(self, param):
-        pass
+        param = param.strip()
+
+        if param in ['.', '..'] or param[len(param)-1:] == '/':
+            print('It can be only a file at this development point.')
+            return False
+
+        # exist param local?
+        if os.path.isfile(self.localPath+'/'+param):
+            # exist it in this path online?
+            elm = self.searchPath(param, SugarSyncShell.TYPE_FILE)
+            if elm is not None:
+                # found. Overwrite?
+                overwrite = None
+                while overwrite is None:
+                    ow = input('Such a file exist already online. Overwrite "%s"? (N/y)' % (param))
+                    ow = ow.strip()
+                    if ow in ['y', 'Y']:
+                        overwrite = True
+                    elif ow in ['n', 'N', '']:
+                        overwrite = False
+                    else:
+                        print('I have not understand your answer "%s".' % (ow))
+
+                if overwrite and not isinstance(elm, SugarSyncFile):
+                    print('Can not overwrite something which is not a file.')
+                    overwrite = None
+            else:
+                overwrite = True
+            
+            create = overwrite and elm is None
+            if not create:
+                filename = str(elm.getLink())
+            else:
+                filename = str(self.path[len(self.path)-1].getLink()) + '/' + param
+
+            self.sugarsync.uploadFile(self.localPath+'/'+param, filename, create)
+        else:
+            print('Could not find the file.')
 
     def lcd(self, param):
         param = param.strip()

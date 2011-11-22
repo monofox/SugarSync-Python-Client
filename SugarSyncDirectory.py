@@ -53,7 +53,10 @@ class SugarSyncDirectory:
         # we have to remove the api url
         links = link.split('/')
         link = links[len(links)-1]
-        self.link = link
+        self.link = str(link)
+
+    def getLink(self):
+        return self.link
 
     # easy too ;-)
     def removeChild(self, child):
