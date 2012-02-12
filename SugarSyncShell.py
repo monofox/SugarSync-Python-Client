@@ -17,8 +17,9 @@ from console import Console
 from Printer import Printer
 from XMLElement import XMLElement
 from XMLTextNode import XMLTextNode
-import os, os.path
+import os, os.path, readline, atexit
 
+#TODO: implement readline for move & others.
 class SugarSyncShell:
     TYPE_FILE = 1
     TYPE_FOLDER = 2
@@ -30,16 +31,26 @@ class SugarSyncShell:
         self.localPath = os.getcwd()
         self.path = [startdir]
         self.run = True
+        self.histfile = os.path.join(os.environ["HOME"], ".pyhist")
+        try:    
+            readline.read_history_file(self.histfile)
+        except IOError:
+            pass
+        atexit.register(readline.write_history_file, self.histfile)
 
         self.cmds = {
                 'clear': self.clear,
                 'cd': self.cd,
                 'get': self.get,
                 'put': self.put,
+                'rm': self.rm,
                 'ls': self.ls,
                 'lpwd': self.lpwd,
                 'lcd' : self.lcd,
+                'lmkdir': self.lmkdir,
                 'pwd': self.pwd,
+                'help': self.help,
+                'refresh': self.refresh,
                 'exit': self.exit
                 }
         self.names = []
@@ -109,6 +120,12 @@ class SugarSyncShell:
         (width, height) = Console.getTerminalSize()
         for f in range(0,height):
             print('');
+
+    def help(self, param):
+        # this is a method to display the help
+        print('Following commands are possible:')
+        for cmd in self.cmds:
+            print(cmd)
 
     def cd(self, param):
         # TODO: at this point its very pre-release...
@@ -232,15 +249,75 @@ class SugarSyncShell:
         else:
             print('Could not find the file.')
 
+    def rm(self, param):
+        param = param.strip()
+        
+        if param in ['.', '..'] or param[len(param)-1:] == '/':    
+            print('It can be only a file at this development point.')
+            return False
+
+        # exist file?
+        elm = self.searchPath(param, SugarSyncShell.TYPE_FILE)
+        if elm is not None:
+            # found.. delete it *hrhrhr* ;-)
+            self.sugarsync.deleteFile(elm.getLink())
+        else:
+            print('Could not find the file.')
+
+    def refresh(self, param):
+        param = param.strip()
+        elm = None
+
+        if len(param) > 0:
+            elm = self.searchPath(param, SugarSyncShell.TYPE_FOLDER)
+        else:
+            elm = self.path[len(self.path)-1]
+    
+        if elm is None:
+            print('Folder not found.')
+        else:
+            elm.refresh()
+
     def lcd(self, param):
         param = param.strip()
         # change local path
         os.chdir(param)
         self.localPath = os.getcwd()
 
+    def lmkdir(self, param):
+        param = param.strip()
+        dirs = param.split('/')
+        if dirs[len(dirs)-1].strip() == '':
+            dirs.pop(len(dirs)-1)
+
+        if len(dirs) < 1:
+            print('You have to specify a directory to create.')
+        else:
+            try:
+                if len(dirs) == 1:
+                    os.mkdir(param)
+                    print('Folder was create.')
+                else:
+                    os.makedirs(param, exist_ok=True)
+            except:
+                print('Folder could not be created.')
+
     def lpwd(self, param):
         # we do not accept any param
         print('Local Path: ' + os.getcwd())
+
+    def lrm(self, param):
+        param = param.strip()
+        
+        if os.path.isfile(param):
+            try:
+                os.remove(param)
+                print('File could be deleted.')
+            except:
+                print('There was an error deleting the file.')
+        elif os.path.isdir(param):
+            print('I only support files at this point of development.')
+
 
     def exit(self, param):
         print('Goodbye ;-)')

@@ -50,9 +50,6 @@ class SugarSyncCollection:
                 if tmp is not None:
                     self.addChild(tmp)
 
-                #print(vars(collection))
-                #print('\n--\n')
-    
     def addChild(self, child):
         self.children[child.getName()] = child
 

@@ -108,6 +108,10 @@ class SugarSyncDirectory:
                 elm.setParent(self)
                 self.addChild(elm)
 
+    def refresh(self):
+        self.children = {}
+        self.retrieveChildren()
+
     def getName(self):
         return self.name
 
