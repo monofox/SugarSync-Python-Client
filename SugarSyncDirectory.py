@@ -124,3 +124,8 @@ class SugarSyncDirectory:
     def setParent(self, parent):
         self.parent = parent
 
+    def printInfo(self):
+        create = self.ctime.strftime('%d/%m/%Y %H:%M')
+        output = '%s: directory, created on %s' % (self.name, create)
+        print(output)
+

@@ -18,6 +18,7 @@ from Printer import Printer
 from XMLElement import XMLElement
 from XMLTextNode import XMLTextNode
 import os, os.path, readline, atexit
+from pickle import Pickler, Unpickler
 
 #TODO: implement readline for move & others.
 class SugarSyncShell:
@@ -41,6 +42,8 @@ class SugarSyncShell:
         self.cmds = {
                 'clear': self.clear,
                 'cd': self.cd,
+                'file': self.info,
+                'history': self.history,
                 'get': self.get,
                 'put': self.put,
                 'rm': self.rm,
@@ -51,11 +54,30 @@ class SugarSyncShell:
                 'pwd': self.pwd,
                 'help': self.help,
                 'refresh': self.refresh,
+                'save': self.save,
+                'load': self.load,
                 'exit': self.exit
                 }
         self.names = []
 
         self.cmd()
+
+    def save(self, param):
+        # saves the shell with all the supdirs.
+        with open('syncdata.bin', 'wb') as f:
+            Pickler(f, 3).dump(self.path)
+
+        print('Data saved...')
+
+    def load(self, param):
+        if os.path.isfile('syncdata.bin'):
+            with open('syncdata.bin', 'rb') as f:
+                self.path = Unpickler(f).load()
+
+            self.clear()
+            print('Data loaded...')
+        else:
+            print('File not found. Session saved?')
 
     def getPath(self, withHeader=True, colorize=True):
         # the beginning:
@@ -99,21 +121,27 @@ class SugarSyncShell:
                 self.cmds[cmd](param)
             except KeyError as ke:
                 print('Wrong input.')
+            except Exception as e:
+                print('Error processing action.', e)
 
     def searchPath(self, path, typ):
-        # TODO: make it performanenter with while instead of for ?
         data = None
         elm = self.path[len(self.path)-1]
         elm = elm.getChildren()
 
         if elm is not None:
-            for k,v in elm.items():
-                if str(v.getName()).strip() == path.strip() and ( 
-                        (isinstance(v, SugarSyncDirectory) and typ == SugarSyncShell.TYPE_FOLDER)
-                        or   (isinstance(v, SugarSyncFile) and typ == SugarSyncShell.TYPE_FILE)
+            keys = list(elm.keys())
+            i = 0
+            while data is None and i < len(keys):
+                if str(elm[keys[i]].getName()).strip() == path.strip() and (
+                        (isinstance(elm[keys[i]], SugarSyncDirectory) and typ == SugarSyncShell.TYPE_FOLDER)
+                        or   (isinstance(elm[keys[i]], SugarSyncFile) and typ == SugarSyncShell.TYPE_FILE)
+                        or   typ == SugarSyncShell.TYPE_ALL
                         ):
-                    data = v
-        
+                    data = elm[keys[i]]
+
+                i = i+1
+
         return data
 
     def clear(self, param):
@@ -167,6 +195,37 @@ class SugarSyncShell:
 
     def pwd(self, param):
         print(self.getPath(False, False)) # withour header and without color
+
+    def history(self, param):
+        param = param.strip()
+        
+        if param in ['.', './', '..', '../'] or param[len(param)-1:] == '/':
+            print('It can be only a file.')
+            return False
+
+        elm = self.searchPath(param, SugarSyncShell.TYPE_FILE)
+        if elm is not None:
+            elm.printVersions()
+        else:
+            print('Path not found.')
+
+    def info(self, param):
+        param = param.strip()
+        
+        if param in ['.', './']:
+            elm = self.path[len(self.path)-1]
+        elif param in ['..', '../'] and len(self.path) > 1:
+            elm = self.path[len(self.path)-2]
+        elif param not in ['.', '..']:
+            elm = self.searchPath(param, SugarSyncShell.TYPE_ALL)
+        else:
+            print('Invalid path.')
+            return False
+
+        if elm is not None:
+            elm.printInfo()
+        else:
+            print('Path not found.')
 
     def get(self, param):
         # at this point it can only be a file

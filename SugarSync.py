@@ -14,6 +14,7 @@
 # now TODO: implement an bash like behavior.
 
 import urllib.request, urllib.error, urllib.parse, mimetypes
+from pickle import Unpickler, Pickler
 #import urllib, urllib2
 from configparser import SafeConfigParser
 #from ConfigParser import SafeConfigParser
@@ -21,11 +22,13 @@ from httplib2 import Http, Response
 from Printer import Printer
 from SugarSyncShell import SugarSyncShell
 from SugarSyncCollection import SugarSyncCollection
+from SugarSyncFile import SugarSyncFile
 from XMLTextNode import XMLTextNode
 from XMLElement import XMLElement
 from XMLParser import XMLParser
 import re, os.path
 import datetime
+import dateutil.parser
 
 class SugarSync:
     def __init__(self, cmd=False):
@@ -91,6 +94,7 @@ class SugarSync:
                     19: Destroy public link\n \
                     20: Get file history\n \
                     21: Enter Commandline\n \
+                    22: Enter saved Commandline\n \
                     \n \
                    ====  SUGAR  SYNC  ====")
             
@@ -246,6 +250,10 @@ class SugarSync:
                 print('\nWelcome to SugarSync-Python-Client Commandline...\n')
 
                 self.startCommandline()
+            elif want == 22:
+                print('\nWelcome to SugarSync-Python-Client Commandline...\n')
+
+                self.startSavedCommandline()
             else:
                 print("\n\nWRONG input - Try again!\n\n")
 
@@ -285,7 +293,7 @@ class SugarSync:
         self.config.set('quota', 'usage', str(self.quotaUsage))
 
         for k,v in self.folder.items():
-            self.config.set('folder', k, v)
+            self.config.set('folder', str(k), str(v))
 
         with open('config.ini', 'w') as configfile:
             self.config.write(configfile)
@@ -356,43 +364,11 @@ class SugarSync:
         return (resp, content)
 
     def parseDate(self, date):
-        pattern = '([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})T([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})\.([0-9]{1,3})((\-|\+)([0-9]{1,2})):([0-9]{1,2})'
-        m = re.compile(pattern)
+        d1 = dateutil.parser.parse(date)
+        d1 = d1.astimezone(dateutil.tz.tzutc())
+        d1 = d1.replace(tzinfo=None)
 
-        match = m.match(date)
-        if match is not None:
-            year = int(match.group(1))
-            month = int(match.group(2))
-            day = int(match.group(3))
-            hour = int(match.group(4))
-            minute = int(match.group(5))
-            second = int(match.group(6))
-            offsetOperand = match.group(9)
-            offsetMulti = int(offsetOperand+'1')*-1
-            offsetHour = int(match.group(10))
-            offsetMinute = int(match.group(11))
-
-            # now correct hour
-            hour = hour+offsetHour*offsetMulti
-            minute = minute+offsetMinute*offsetMulti
-
-            if minute > 59:
-                diff = minute/60.0
-                hour+= int(diff)
-                diff = diff-int(diff)
-                minute = diff*60
-
-            if hour >= 24:
-                diff = hour/24
-                day += int(diff)
-                diff = diff-int(diff)
-                hour = int(diff*24)
-                            
-            dd = datetime.datetime(year, month, day, hour, minute, second)
-
-            return dd
-        else:
-            return None
+        return d1
 
     def checkAuth(self):
         # check whether token is expired or not!
@@ -431,6 +407,22 @@ class SugarSync:
     def addElementToDatabase(self, file, location):
         # this is for sync. TODO: implment element adding to database.
         pass
+
+    def startSavedCommandline(self):
+        # TODO: problems with back references?
+        path = None
+        if os.path.isfile('syncdata.bin'):
+            with open('syncdata.bin', 'rb') as f:
+                path = Unpickler(f).load()
+        else:
+            print('File not found. Session saved?')
+
+        if path == None:
+            self.startCommandline()
+        else:
+            ssh = SugarSyncShell(self, path[0])
+            ssh.path = path
+        
 
     def startCommandline(self):
         # TODO: commandline!!!
@@ -558,11 +550,25 @@ class SugarSync:
 
     def getFileHistory(self, filename):
         response = self.sendRequest('/file/%s/version' % filename, {}, True, False)
+        files = None
 
         if response is not False and response is not None:
             info = response.info()
             code = response.getcode()
             data = XMLElement.parse(response.read().decode('utf8'))
+
+            # We will parse into SugarSyncFile and then return an dict maybe sorted after
+            # lastModified
+            if code == 200 and data is not None:
+                files = []
+                for fv in data.childs:
+                    version = SugarSyncFile(self, fv.ref)
+                    version.setSize(fv.size)
+                    version.setMediaType(str(fv.mediaType))
+                    version.setPresentOnServer(str(fv.presentOnServer))
+                    version.setLastModified(str(fv.lastModified))
+
+                    files.append(version)
 
             if code == 200:
                 print('Got file history successfully.')
@@ -571,6 +577,8 @@ class SugarSync:
 
         else:
             print('Request failed.')
+
+        return files
 
 
     def getThumbnail(self, image, saveto, xmax, ymax, square = 1, rotate=0):

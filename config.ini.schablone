@@ -1,6 +1,7 @@
 [user]
 username = 
 password = 
+nickname =
 
 [connection]
 url = https://api.sugarsync.com
@@ -26,3 +27,4 @@ albums =
 recentActivities =
 receivedShares =
 publicLinks =
+

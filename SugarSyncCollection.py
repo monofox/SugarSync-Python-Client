@@ -19,6 +19,8 @@ class SugarSyncCollection:
         self.sync = sync
         self.link = link
         self.name = ''
+        self.ctime = None
+        self.iconID = None
 
         self.parent = None
         self.children = {}
@@ -73,4 +75,12 @@ class SugarSyncCollection:
 
     def getParent(self):
         return self.parent
+
+    def printInfo(self):
+        # TODO implement me! ;-) (Problem with collection link
+        output = '%s: workspace or collection. icon id: %i, created on %s' % (
+                self.name, 0, ' TODO - not implemented yet - '
+                )
+
+        print(output)
 

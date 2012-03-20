@@ -4,5 +4,7 @@ SugarSync.
 
 Maybe later there will be a GUI.
 
+Dep: Python 3, httplib2, Dateutil >= 2.0
+
 author: Lukas Schreiner <lukas.schreiner@gmail.com>
 author: Alexander Straube <alexander.straube@gmail.com>
