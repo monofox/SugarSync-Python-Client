@@ -11,13 +11,13 @@
 class XMLTextNode:
     
     def __init__(self, value=''):
-        self.value = value
+        self.value = str(value)
         
     def getName(self):
         return None
         
     def setValue(self, value):
-        self.value = value
+        self.value = str(value)
         
     def getValue(self):
         return self.value

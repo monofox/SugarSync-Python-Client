@@ -96,6 +96,8 @@ class SugarSyncFile:
 
     def setVersions(self):
         self.versions = SugarSync.getFileHistory(self.link)
+        # sort versions
+        self.versions = sorted(self.versions, key=lambda version: version.lastModified)
 
     def getVersions(self):
         if len(self.versions) <= 0:
@@ -107,7 +109,7 @@ class SugarSyncFile:
         versions = self.getVersions()
         
         if len(versions) > 0:
-            print('The versions of file %s:' % (self.name))
+            print('The versions of file %s (newest last):' % (self.name))
         else:
             print('There are no versions of the file %s.' % (self.name))
 
@@ -131,8 +133,8 @@ class SugarSyncFile:
                     )
         else:
             # this should only be possible when file is a version
-            output = '%s: %s, size of %i bytes, creation time is not known and modified on %s. It is%spresent on the server' % (
-                    self.name, self.mediaType, self.size, modified, self.presentOnServer and ' ' or ' not '
+            output = ' - %s, size of %i bytes, last modified on %s. It is%spresent on the server' % (
+                    self.mediaType, self.size, modified, self.presentOnServer and ' ' or ' not '
                     )
 
 

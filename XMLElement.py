@@ -27,7 +27,7 @@ class XMLElement:
         return self.name
     
     def setHead(self, value):
-        self.head = value
+        self.head = str(value)
         
     def removeHead(self):
         self.head = None
@@ -36,11 +36,11 @@ class XMLElement:
         return self.value
     
     def setAttribute(self, name, value):
-        self.attributes[name] = value
+        self.attributes[str(name)] = str(value)
     
     def removeAttribute(self, name):
         try:
-            del self.attributes[name]
+            del self.attributes[str(name)]
         except:
             print("Element doesn't exist!")
     

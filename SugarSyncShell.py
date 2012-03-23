@@ -17,8 +17,10 @@ from console import Console
 from Printer import Printer
 from XMLElement import XMLElement
 from XMLTextNode import XMLTextNode
+from collections import OrderedDict
 import os, os.path, readline, atexit
 from pickle import Pickler, Unpickler
+import sys, traceback
 
 #TODO: implement readline for move & others.
 class SugarSyncShell:
@@ -42,6 +44,7 @@ class SugarSyncShell:
         self.cmds = {
                 'clear': self.clear,
                 'cd': self.cd,
+                'cp' : self.cp,
                 'file': self.info,
                 'history': self.history,
                 'get': self.get,
@@ -58,6 +61,7 @@ class SugarSyncShell:
                 'load': self.load,
                 'exit': self.exit
                 }
+        self.cmds = OrderedDict(sorted(self.cmds.items(), key=lambda t: t[0]))
         self.names = []
 
         self.cmd()
@@ -123,6 +127,49 @@ class SugarSyncShell:
                 print('Wrong input.')
             except Exception as e:
                 print('Error processing action.', e)
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                #print("*** print_tb:")
+                #traceback.print_tb(exc_traceback, limit=20, file=sys.stdout)
+                print("*** print_exception:")
+                traceback.print_exception(exc_type, exc_value, exc_traceback, limit=20, file=sys.stdout)
+
+
+    def searchRecursivePath(self, parent, path, typ):
+        # TODO: implement '.' and '..'
+        if type(path).__name__ == 'str':
+            path = path.split('/') # i search always path[0]!
+
+        if parent is None:
+            parent = self.path[len(self.path)-1]
+
+        child = parent.getChildren()
+
+        data = []
+        i = 0
+
+        keys = list(child.keys())
+        while type(data).__name__ == 'list' and len(data) <= 0 and i < len(keys):
+            if str(child[keys[i]].getName()).strip() == path[0].strip():
+                if len(path) > 1 and isinstance(child[keys[i]], SugarSyncDirectory):
+                    dataTmp = self.searchRecursivePath(child[keys[i]], path[1:], typ)
+                    data.append(child[keys[i]])
+                    if type(dataTmp).__name__ == 'list':
+                        for f in dataTmp:
+                            data.append(f)
+                    elif dataTmp is not None:
+                        data.append(dataTmp)
+                elif len(path) == 1 and (
+                        (isinstance(child[keys[i]], SugarSyncDirectory) and typ == SugarSyncShell.TYPE_FOLDER)
+                        or (isinstance(child[keys[i]], SugarSyncFile) and typ == SugarSyncShell.TYPE_FILE)
+                        or typ == SugarSyncShell.TYPE_ALL
+                        ):
+                    data.append(child[keys[i]])
+            i = i + 1
+
+        if type(data).__name__ == 'list' and len(data) <= 0:
+            data = None
+
+        return data
 
     def searchPath(self, path, typ):
         data = None
@@ -170,9 +217,10 @@ class SugarSyncShell:
             self.path.pop()
         else:
             # search
-            path = self.searchPath(param, SugarSyncShell.TYPE_FOLDER)
+            path = self.searchRecursivePath(None, param, SugarSyncShell.TYPE_FOLDER)
             if path is not None:
-                self.path.append(path)
+                for f in path:
+                    self.path.append(f)
                 return True
             else:
                 print('Could not change the directory.')
@@ -307,6 +355,64 @@ class SugarSyncShell:
             self.sugarsync.uploadFile(self.localPath+'/'+param, filename, create)
         else:
             print('Could not find the file.')
+
+    def cp(self, param):
+        param = param.strip()
+        param = param.split(' ')
+        elm = None
+        folder = None
+        target = None
+        
+        if param[0] in ['.', '..'] or param[0][len(param)-1:] == '/':    
+            print('It can be only a file at this development point.')
+            return False
+
+        # exist file?
+        elm = self.searchPath(param[0], SugarSyncShell.TYPE_FILE)
+        if elm is None:
+            print('Could not find the file.') 
+            return False
+
+        if len(param) == 3:
+            # params are: <file> <folder> <new-name>
+            if param[1] == '.':
+                folder = self.path[len(self.path)-1]
+            elif param[1] == '..':
+                if len(self.path) > 1:
+                    folder = self.path[len(self.path)-2]
+                else:
+                    print('You cant go more back than to root.')
+                    return False
+            else:
+                folder = self.searchPath(param[2], SugarSyncShell.TYPE_FOLDER)
+        elif len(param) == 2:
+            # first: we try to find existent folder
+            folder = self.searchPath(param[1], SugarSyncShell.TYPE_FOLDER)
+            if folder is None:
+                param[1] = param[1].split('/')
+                target = param[1][-1]
+                param[1] = '/'.join(param[1][:-1])
+                folder = self.searchPath(param[1], SugarSyncShell.TYPE_FOLDER)
+                if folder is None:
+                    print('No Valid folder.')
+                    return False
+            if target is None or target == '':
+                target = elm.getName()
+
+        else:
+            print('Nope. You have give me too much or not enough parameters. Syntax: <file> <target>')
+            return False
+        
+        if target is None:
+            target = param[2]
+
+        # Now check, whether the file exists already in the target folder.
+
+
+        ret = self.sugarsync.copyFile(elm.getLink(), folder.getLink(), target)
+        if ret:
+            # refresh target folder
+            folder.refresh()
 
     def rm(self, param):
         param = param.strip()

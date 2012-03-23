@@ -59,6 +59,8 @@ class SugarSync:
         if cmd:
             self.cmd()
 
+        self.__del__()
+
     def __del__(self):
         # write config
         print('Saving config...\n')
@@ -81,7 +83,7 @@ class SugarSync:
                      8: Rename a folder\n \
                      9: Rename a file\n \
                     10: Moving a file\n \
-                    11: Copy a file ::: DOES NOT WORK (400)\n \
+                    11: Copy a file\n \
                     12: Upload a file\n \
                     13: Download a file\n \
                     14: Get folder informations\n \
@@ -569,7 +571,7 @@ class SugarSync:
             if code == 200 and data is not None:
                 files = []
                 for fv in data.childs:
-                    version = SugarSyncFile(self, fv.ref)
+                    version = SugarSyncFile(fv.ref)
                     version.setSize(fv.size)
                     version.setMediaType(str(fv.mediaType))
                     version.setPresentOnServer(str(fv.presentOnServer))
@@ -702,10 +704,10 @@ class SugarSync:
             print('There is nothing to change O_o')
 
     def copyFile(self, source, target, name):
+        print(source, target, name)
         data = XMLElement('fileCopy')
         data.setHead(self.xmlHead)
         data.setAttribute('source', self.apiURL+'/file/'+source)
-
         data.addChild(XMLElement('displayName').addChild(XMLTextNode(name)))
 
         response = self.sendRequest('/folder/%s' % target, data.toString())
@@ -718,8 +720,11 @@ class SugarSync:
             if code == 201:
                 self.addElementToDatabase('%s/%s' % (target, name), location)
                 print('File copied with sucess. Location: %s' % location)
+                return True
             else:
                 print('File could not be copied (Code: %s)!' % (code))
+
+            return False
 
     def deleteFile(self, filename):
         resp, content = self.sendRequestDelete('/file/'+filename)   
