@@ -10,27 +10,23 @@
 # For debugging: please use the pudb from
 # https://github.com/orsenthil/pudb.git
 # because the original does not support python3!
-#
-# now TODO: implement an bash like behavior.
 
 import urllib.request, urllib.error, urllib.parse, mimetypes
 from pickle import Unpickler, Pickler
-#import urllib, urllib2
 from configparser import SafeConfigParser
-#from ConfigParser import SafeConfigParser
 from httplib2 import Http, Response
 from Printer import Printer
-from SugarSyncShell import SugarSyncShell
-from SugarSyncCollection import SugarSyncCollection
-from SugarSyncFile import SugarSyncFile
 from XMLTextNode import XMLTextNode
 from XMLElement import XMLElement
 from XMLParser import XMLParser
+from SugarSyncInstance import SugarSyncInstance
 import re, os.path
 import datetime
 import dateutil.parser
 
 class SugarSync:
+    instance = None
+
     def __init__(self, cmd=False):
         # will be written to config.ini on exit and loaded on startup
         self.username = ''
@@ -56,6 +52,8 @@ class SugarSync:
         # Call functions
         self.readConfig()
         self.checkAuth()
+
+        SugarSyncInstance.instance = self
 
         # only execute menue if cmd is true!
         if cmd:
@@ -199,13 +197,13 @@ class SugarSync:
                 # we need folder id
                 folder = input('Folder: ')
 
-                self.getFolderInfo(folder)
+                SugarSync.getFolderInfo(folder)
             elif want == 15:
                 print('\nRetrieving file informations...\n')
                 # we need file id
                 filename = input('File: ')
 
-                self.getFileInfo(filename)
+                SugarSync.getFileInfo(filename)
             elif want == 16:
                 print('\nRetrieving file thumbnail...\n')
                 print('For your information: actual it only works if square: 1')
@@ -245,7 +243,7 @@ class SugarSync:
 
                 filename = input('File: ')
 
-                self.getFileHistory(filename)
+                SugarSync.getFileHistory(filename)
             elif want == 21:
                 print('\nWelcome to SugarSync-Python-Client Commandline...\n')
 
@@ -363,7 +361,8 @@ class SugarSync:
 
         return (resp, content)
 
-    def parseDate(self, date):
+    @staticmethod
+    def parseDate(date):
         d1 = dateutil.parser.parse(date)
         d1 = d1.astimezone(dateutil.tz.tzutc())
         d1 = d1.replace(tzinfo=None)
@@ -372,7 +371,7 @@ class SugarSync:
 
     def checkAuth(self):
         # check whether token is expired or not!
-        date = self.parseDate(self.tokenExpire)
+        date = SugarSync.parseDate(self.tokenExpire)
         date2 = datetime.datetime.utcnow()
 
         # compare: if date <= date2: self.auth, else: nothing!
@@ -409,7 +408,7 @@ class SugarSync:
         pass
 
     def startSavedCommandline(self):
-        # TODO: problems with back references?
+        from SugarSyncShell import SugarSyncShell
         path = None
         if os.path.isfile('syncdata.bin'):
             with open('syncdata.bin', 'rb') as f:
@@ -425,14 +424,15 @@ class SugarSync:
         
 
     def startCommandline(self):
-        # TODO: commandline!!!
+        from SugarSyncCollection import SugarSyncCollection
+        from SugarSyncShell import SugarSyncShell
 
         # starting with folder->syncfolders
         startdir = self.config.get('folder', 'syncfolders')
         startdir = startdir[25:] # its temp. We should implement this in an other way.
         
         # startdir will be an object. so create it here.
-        startdir = SugarSyncCollection(self, startdir)
+        startdir = SugarSyncCollection(startdir)
 
         # we have the problem, that we start within an collection!
         # so we can't use getFileInfo.
@@ -489,11 +489,14 @@ class SugarSync:
             else:
                 print('File could not be moved (Code: %s)!' % (resp['status']))
 
-    def getFileInfo(self, filename, absolut=False): # filename => file id
+    @staticmethod
+    def getFileInfo(filename, absolut=False): # filename => file id
+        sync = SugarSyncInstance.instance
+
         if absolut is False:
             filename = '/file/' + filename
 
-        resp = self.sendRequest(filename, post=False)
+        resp = sync.sendRequest(filename, post=False)
         respData = None
 
         if resp is not None:
@@ -548,8 +551,12 @@ class SugarSync:
             else:
                 print('File could not be downloaded (Code: %s)!' % (code))
 
-    def getFileHistory(self, filename):
-        response = self.sendRequest('/file/%s/version' % filename, {}, True, False)
+    @staticmethod
+    def getFileHistory(filename):
+        from SugarSyncFile import SugarSyncFile
+        sync = SugarSyncInstance.instance
+
+        response = sync.sendRequest('/file/%s/version' % filename, {}, True, False)
         files = None
 
         if response is not False and response is not None:
@@ -784,8 +791,11 @@ class SugarSync:
             else:
                 print('Folder could not be renamed (Code: %s)!' % (resp['status']))
 
-    def getFolderInfo(self, foldername): # foldername is the id
-        resp = self.sendRequest('/folder/'+foldername, post=False)
+    @staticmethod
+    def getFolderInfo(foldername): # foldername is the id
+        sync = SugarSyncInstance.instance
+
+        resp = sync.sendRequest('/folder/'+foldername, post=False)
         respData = None
 
         if resp is not None:
@@ -829,7 +839,10 @@ class SugarSync:
     def getWorkspace(self, pcid):
         pass
 
-    def getCollectionContentInfo(self, link, typ = 'all', start = 0, maxnumber = 500):
+    @staticmethod
+    def getCollectionContentInfo(link, typ = 'all', start = 0, maxnumber = 500):
+        sync = SugarSyncInstance.instance
+
         if typ in ['file','folder']:
             typ = '&type=%s' % typ
         else:
@@ -838,7 +851,7 @@ class SugarSync:
         if link[:1] != '/':
             link = '/'+link
 
-        response = self.sendRequest(link+'?start=%i&max=%i%s' % (start,maxnumber,typ), {}, True, False)
+        response = sync.sendRequest(link+'?start=%i&max=%i%s' % (start,maxnumber,typ), {}, True, False)
 
         if response is not None:
             raw_data = response.read().decode('utf8')
@@ -851,7 +864,10 @@ class SugarSync:
         else:
             return None
 
-    def getFolderContents(self, link, typ = 'all', start = 0, maxnumber = 500):
+    @staticmethod
+    def getFolderContents(link, typ = 'all', start = 0, maxnumber = 500):
+        sync = SugarSyncInstance.instance
+
         if typ in ['file','folder']:
             typ = '&type=%s' % typ
         else:
@@ -862,7 +878,7 @@ class SugarSync:
 
         link = '/folder' + link
 
-        response = self.sendRequest(link+'/contents?start=%i&max=%i%s' % (start,maxnumber,typ), {}, True, False)
+        response = sync.sendRequest(link+'/contents?start=%i&max=%i%s' % (start,maxnumber,typ), {}, True, False)
         if response is not None:
             raw_data = response.read().decode('utf8')
             data = XMLParser.parse(raw_data)
@@ -891,7 +907,7 @@ class SugarSync:
             self.folder['publiclinks'] = data.publicLinks
         
             print("Data loaded! \n\n")
-
+    
 
 if __name__ == "__main__":
     ss = SugarSync(True)

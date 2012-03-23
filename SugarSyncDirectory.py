@@ -12,14 +12,13 @@
 from XMLElement import XMLElement
 from SugarSyncFile import SugarSyncFile
 from Printer import Printer
+from SugarSync import SugarSync
 
 class SugarSyncDirectory:
     # this is mainly for directories. But collections are nearly identicaly.
     # so we will handle it normal and will create subdirs
 
-    def __init__(self, sync, link):
-        self.sync = sync
-        
+    def __init__(self, link):
         # link can be a link or an dsid
         # we have to find it out. I think the best is via collection=True or False
         if link is not None:
@@ -69,7 +68,7 @@ class SugarSyncDirectory:
         return self.children
 
     def setTime(self, time):
-        dt = self.sync.parseDate(time)
+        dt = SugarSync.parseDate(time)
         if dt is not None:
             self.ctime = dt
         else:
@@ -83,7 +82,7 @@ class SugarSyncDirectory:
 
     def retrieveInfo(self):
         # first folder informations
-        informations = self.sync.getFolderInfo(self.link)
+        informations = SugarSync.getFolderInfo(self.link)
         if informations is not None:
             self.setName(informations.displayName)
             self.setTime(informations.timeCreated.getValue())
@@ -93,16 +92,16 @@ class SugarSyncDirectory:
             return False
 
     def retrieveChildren(self):
-        data = self.sync.getFolderContents(self.link)
+        data = SugarSync.getFolderContents(self.link)
         # we have to split all elements and check whether its a folder or a file
         childs = data.getChildren()
 
         if childs is not None:
             for c in childs:
                 if c.getName() == 'collection' and c.getAttribute('type') == 'folder':
-                    elm = SugarSyncDirectory(self.sync, c.ref)
+                    elm = SugarSyncDirectory(c.ref)
                 else:
-                    elm = SugarSyncFile(self.sync, c.ref)
+                    elm = SugarSyncFile(c.ref)
                 
                 elm.setName(c.displayName)
                 elm.setParent(self)

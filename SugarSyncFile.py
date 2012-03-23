@@ -11,11 +11,11 @@
 # because the original does not support python3!
 from XMLElement import XMLElement
 from Printer import Printer
+from SugarSync import SugarSync
 
 class SugarSyncFile:
 
-    def __init__(self, sync, link):
-        self.sync = sync
+    def __init__(self, link):
         self.name = None
         self.parent = None
         self.timeCreated = None
@@ -66,13 +66,13 @@ class SugarSyncFile:
         return self.size
 
     def setTimeCreated(self, tc):
-        self.timeCreated = self.sync.parseDate(tc)
+        self.timeCreated = SugarSync.parseDate(tc)
 
     def getTimeCreated(self):
         return self.timeCreated
 
     def setLastModified(self, lm):
-        self.lastModified = self.sync.parseDate(lm)
+        self.lastModified = SugarSync.parseDate(lm)
 
     def getLastModified(self):
         return self.lastModified
@@ -87,15 +87,15 @@ class SugarSyncFile:
         return self.presentOnServer
 
     def getInfo(self):
-        data = self.sync.getFileInfo(self.link)
+        data = SugarSync.getFileInfo(self.link)
         self.size = int(str(data.size))
         self.presentOnServer = str(data.presentOnServer) == 'true' and True or False
-        self.timeCreated = self.sync.parseDate(str(data.timeCreated))
-        self.lastModified = self.sync.parseDate(str(data.lastModified))
+        self.timeCreated = SugarSync.parseDate(str(data.timeCreated))
+        self.lastModified = SugarSync.parseDate(str(data.lastModified))
         self.mediaType = str(data.mediaType)
 
     def setVersions(self):
-        self.versions = self.sync.getFileHistory(self.link)
+        self.versions = SugarSync.getFileHistory(self.link)
 
     def getVersions(self):
         if len(self.versions) <= 0:

@@ -13,10 +13,11 @@
 from SugarSyncFile import SugarSyncFile
 from SugarSyncDirectory import SugarSyncDirectory
 from Printer import Printer
+from SugarSync import SugarSync
+
 class SugarSyncCollection:
 
-    def __init__(self, sync, link):
-        self.sync = sync
+    def __init__(self, link):
         self.link = link
         self.name = ''
         self.ctime = None
@@ -33,7 +34,7 @@ class SugarSyncCollection:
         self.loadCollection()
 
     def loadCollection(self):
-        data = self.sync.getCollectionContentInfo(self.link, 'all', self.start, self.maxEntries)
+        data = SugarSync.getCollectionContentInfo(self.link, 'all', self.start, self.maxEntries)
         if data is None:
             print('Fatal Error on parsing collection content!')
 
@@ -42,11 +43,11 @@ class SugarSyncCollection:
             for collection in data.childs:
                 tmp = None
                 if collection.hasAttribute('type') and collection.getAttribute('type') == 'syncFolder':
-                    tmp = SugarSyncDirectory(self.sync, collection.ref)
+                    tmp = SugarSyncDirectory(collection.ref)
                     tmp.setName(collection.displayName)
                     tmp.setParent(self)
                 else:
-                    tmp = SugarSyncFile(self.sync, collection.ref)
+                    tmp = SugarSyncFile(collection.ref)
                     tmp.setParent(self)
 
                 if tmp is not None:
