@@ -134,8 +134,8 @@ class SugarSyncShell:
                 traceback.print_exception(exc_type, exc_value, exc_traceback, limit=20, file=sys.stdout)
 
 
-    def searchRecursivePath(self, parent, path, typ):
-        # TODO: implement '.' and '..'
+    def searchRecursivePath(self, parent, path, typ, top=True):
+        # TODO: implement and '..' correctly ;-)
         if type(path).__name__ == 'str':
             path = path.split('/') # i search always path[0]!
 
@@ -147,16 +147,39 @@ class SugarSyncShell:
         data = []
         i = 0
 
+        if path[0].strip() == '.' \
+                or (len(path) > 1 and path[1].strip() == '..'):
+
+            newLen = 0
+            if len(path) > 1 and path[0].strip() == '.':
+                newLen = 1
+            elif len(path) > 2 and path[1].strip() == '..':
+                newLen = 2
+            else:
+                # this is the last path element. We will check.
+                if typ is not SugarSyncShell.TYPE_FOLDER:
+                    data = None
+            
+            if newLen > 0:
+                dataTmp = self.searchRecursivePath(parent, path[newLen:], typ, False)
+                if type(dataTmp).__name__ == 'list':
+                    for f in dataTmp:
+                        data.append(f)
+                elif dataTmp is not None:
+                    data.append(dataTmp)
+            
+
         keys = list(child.keys())
         while type(data).__name__ == 'list' and len(data) <= 0 and i < len(keys):
             if str(child[keys[i]].getName()).strip() == path[0].strip():
                 if len(path) > 1 and isinstance(child[keys[i]], SugarSyncDirectory):
-                    dataTmp = self.searchRecursivePath(child[keys[i]], path[1:], typ)
+                    dataTmp = self.searchRecursivePath(child[keys[i]], path[1:], typ, False)
                     data.append(child[keys[i]])
                     if type(dataTmp).__name__ == 'list':
                         for f in dataTmp:
-                            data.append(f)
-                    elif dataTmp is not None:
+                            if f not in data:
+                                data.append(f)
+                    elif dataTmp is not None and dataTmp not in data:
                         data.append(dataTmp)
                 elif len(path) == 1 and (
                         (isinstance(child[keys[i]], SugarSyncDirectory) and typ == SugarSyncShell.TYPE_FOLDER)
@@ -168,6 +191,21 @@ class SugarSyncShell:
 
         if type(data).__name__ == 'list' and len(data) <= 0:
             data = None
+
+        if top and data is not None:
+            add = False
+            newPath = []
+            for f in self.path:
+                if f in data:
+                    break
+                newPath.append(f)
+
+            for f in data:
+                newPath.append(f)
+
+            data = newPath
+        elif top:
+            data = self.path
 
         return data
 
@@ -219,8 +257,7 @@ class SugarSyncShell:
             # search
             path = self.searchRecursivePath(None, param, SugarSyncShell.TYPE_FOLDER)
             if path is not None:
-                for f in path:
-                    self.path.append(f)
+                self.path = path
                 return True
             else:
                 print('Could not change the directory.')
