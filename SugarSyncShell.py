@@ -34,12 +34,14 @@ class SugarSyncShell:
         self.localPath = os.getcwd()
         self.path = [startdir]
         self.run = True
-        self.histfile = os.path.join(os.environ["HOME"], ".pyhist")
+        self.histfile = os.path.join(os.environ["HOME"], ".ssync.pyhist")
+        readline.parse_and_bind("tab: complete")
         try:    
             readline.read_history_file(self.histfile)
         except IOError:
             pass
         atexit.register(readline.write_history_file, self.histfile)
+        readline.set_completer(self.completer)
 
         self.cmds = {
                 'clear': self.clear,
@@ -65,6 +67,28 @@ class SugarSyncShell:
         self.names = []
 
         self.cmd()
+
+    def completer(self, text, state):
+
+        filelist = self.path[len(self.path)-1].getChildren()
+        if len(filelist) <= 0:
+            return None
+
+        # sort ?
+        keys = sorted(filelist.keys())
+        filtlist = []
+        # why so easy? Because we only need it so!
+        for tab in keys:
+            if tab.lower().startswith(text.strip().lower()):
+                filtlist.append(tab)
+        
+        if state > len(filtlist) \
+                and len(filtlist) > 0:
+            return None
+        elif len(filtlist) > 0:
+            return filtlist[state]
+        else:
+            return None
 
     def save(self, param):
         # saves the shell with all the supdirs.

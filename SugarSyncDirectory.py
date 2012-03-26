@@ -45,6 +45,9 @@ class SugarSyncDirectory:
     def addChild(self, child):
         self.children[child.getName()] = child
 
+    def getSortList(self):
+        return self.sortList
+
     def setLink(self, link):
         if isinstance(link, XMLElement):
             link = link.getValue()
@@ -103,7 +106,7 @@ class SugarSyncDirectory:
                 else:
                     elm = SugarSyncFile(c.ref)
                 
-                elm.setName(c.displayName)
+                elm.setName(str(c.displayName))
                 elm.setParent(self)
                 self.addChild(elm)
 
