@@ -13,4 +13,5 @@
 
 class SugarSyncInstance:
     instance = None
+    notifier = None
 

@@ -140,3 +140,6 @@ class SugarSyncFile:
 
         print(output)
 
+    def update(self, path):
+        pass
+

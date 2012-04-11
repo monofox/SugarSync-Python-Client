@@ -20,12 +20,12 @@ from XMLTextNode import XMLTextNode
 from XMLElement import XMLElement
 from XMLParser import XMLParser
 from SugarSyncInstance import SugarSyncInstance
+from SugarSyncNotifier import SugarSyncNotifier
 import re, os.path
 import datetime
 import dateutil.parser
 
 class SugarSync:
-    instance = None
 
     def __init__(self, cmd=False):
         # will be written to config.ini on exit and loaded on startup
@@ -95,6 +95,7 @@ class SugarSync:
                     20: Get file history\n \
                     21: Enter Commandline\n \
                     22: Enter saved Commandline\n \
+                    23: Start notifier\n \
                     \n \
                    ====  SUGAR  SYNC  ====")
             
@@ -254,6 +255,8 @@ class SugarSync:
                 print('\nWelcome to SugarSync-Python-Client Commandline...\n')
 
                 self.startSavedCommandline()
+            elif want == 23:
+                self.startNotifier()
             else:
                 print("\n\nWRONG input - Try again!\n\n")
 
@@ -912,7 +915,31 @@ class SugarSync:
             self.folder['publiclinks'] = data.publicLinks
         
             print("Data loaded! \n\n")
-    
+
+    def startNotifier(self):
+        # in future we want to save the added notifications on startup.
+        snotifier = SugarSyncNotifier(self)
+        snotifier.startNotifier()
+        # that's it ;-)
+        path = None
+        try:
+            while True:
+                path = input('Give me a local path for watching...\n')
+                print('\n\nCheck whether path exists or not...')
+                if os.path.exists(path):
+                    print('\nCongrats! The path exists. Start watching ;-)\n\n')
+                    snotifier.addNotifierPath(os.path.abspath(path), None)
+                else:
+                    print('\nFoo! The path does not exist. Try again!\n\n')
+        except KeyboardInterrupt as ke:
+            print('You\'ve stopped!')
+
+        self.stopNotifier()
+
+    def stopNotifier(self):
+        snotifier = SugarSyncInstance.notifier
+        snotifier.stopNotifier()
+        snotifier.__del__()
 
 if __name__ == "__main__":
     ss = SugarSync(True)

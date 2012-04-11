@@ -13,6 +13,7 @@ from XMLElement import XMLElement
 from SugarSyncFile import SugarSyncFile
 from Printer import Printer
 from SugarSync import SugarSync
+from SugarSyncInstance import SugarSyncInstance
 
 class SugarSyncDirectory:
     # this is mainly for directories. But collections are nearly identicaly.
@@ -110,6 +111,19 @@ class SugarSyncDirectory:
                 elm.setParent(self)
                 self.addChild(elm)
 
+    def searchChild(self, filename):
+        i = 0
+        found = False
+
+        while i < len(self.children) and not found:
+            if isinstance(self.children[i], SugarSyncFile) \
+                    and self.children[i].getName() == filename:
+                found = True
+
+            i += 1
+
+        return self.children[i-1]
+
     def refresh(self):
         self.children = {}
         self.retrieveChildren()
@@ -130,4 +144,18 @@ class SugarSyncDirectory:
         create = self.ctime.strftime('%d/%m/%Y %H:%M')
         output = '%s: directory, created on %s' % (self.name, create)
         print(output)
+
+    def notifyCreate(self, evt):
+        # if its a directory, we will set a new notify item ;-)
+        # (after creating the dirctory)
+        pass
+
+    def notifyDelete(self, evt):
+        # if its a directory, the directory will remove the watcher - if there exist any.
+        pass
+
+    def notifyModify(self, evt):
+        # we have to upload it / update it.
+        child = self.searchChild(evt.name)
+        child.update(evt.pathname)
 
