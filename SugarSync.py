@@ -939,7 +939,6 @@ class SugarSync:
     def stopNotifier(self):
         snotifier = SugarSyncInstance.notifier
         snotifier.stopNotifier()
-        snotifier.__del__()
 
 if __name__ == "__main__":
     ss = SugarSync(True)

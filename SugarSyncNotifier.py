@@ -25,6 +25,7 @@ class SugarSyncNotifier:
         self.notifier = None
         self.watchPaths = []
         self.mask = pyinotify.IN_DELETE | pyinotify.IN_CREATE | pyinotify.IN_MODIFY
+        self.run = False
 
         SugarSyncInstance.notifier = self
 
@@ -32,9 +33,10 @@ class SugarSyncNotifier:
         self.wm = pyinotify.WatchManager()
         self.notifier = pyinotify.ThreadedNotifier(self.wm, NotifyHandler())
         self.notifier.start()
+        self.run = True
 
     def addNotifierPath(self, path, rdir):
-        self.watchPaths.append(NotifyItem(path, self.wm.add_watch(path, self.mask, rec=True), rdir))
+        self.watchPaths.append(NotifyItem(path, self.wm.add_watch(path, self.mask), rdir))
 
     def removeNotifierPath(self, path):
         # we have to go through all items, because
@@ -42,9 +44,7 @@ class SugarSyncNotifier:
         toRemove = []
         for f in self.watchPaths:
             if f.getPath() == path:
-                values = f.getWatcher().values()
-                for v in values:
-                    self.wm.rm_watch(v)
+                self.wm.rm_watch(list(f.getWatcher().values()))
                 toRemove.append(f)
 
         for f in toRemove:
@@ -56,9 +56,7 @@ class SugarSyncNotifier:
         toRemove = []
         for f in self.watchPaths:
             if f.getRemoteDir() == path:
-                values = f.getWatcher().values()
-                for v in values:
-                    self.wm.rm_watch(v)
+                self.wm.rm_watch(list(f.getWatcher().values()))
                 toRemove.append(f)
 
         for f in toRemove:
@@ -78,15 +76,14 @@ class SugarSyncNotifier:
 
     def stopNotifier(self):
         for f in self.watchPaths:
-            values = f.getWatcher().values()
-            for v in values:
-                self.wm.rm_watch(v)
-            # following thing does not work. Issue #33: https://github.com/seb-m/pyinotify/issues/33
-            #self.wm.rm_watch(f.getWatcher().values())
+            self.wm.rm_watch(list(f.getWatcher().values()))
 
+        Printer(self.notifier)
         self.watchPaths = []
         # following thing does not work. Issue #33: https://github.com/seb-m/pyinotify/issues/33
-        self.notifier.stop()
+        if self.run:
+            self.notifier.stop()
+            self.run = False
 
     def __del__(self):
         self.stopNotifier()
