@@ -182,11 +182,11 @@ class SugarSync:
             elif want == 12:
                 print('\nUploading a file...\n')
                 # we need the filename
-                filename = input('File to be uploaded (local!): ')
+                lfile = input('File to be uploaded (local!): ')
                 # remote file
                 filename = input('File in SugarSync: ')
 
-                self.uploadFile(filename, filename)
+                self.uploadFile(lfile, filename)
             elif want == 13:
                 print('\nDownloading a file...\n')
                 # we need the file
